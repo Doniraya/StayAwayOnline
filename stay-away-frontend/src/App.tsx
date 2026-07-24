@@ -4,6 +4,15 @@ import type { GameState, Card } from './types/game';
 import { motion } from 'framer-motion';
 import { Users, Bot, Play, ShieldAlert, Flame, Eye, FileText, Ban, Lock, Biohazard, X, Trophy, Skull, RotateCcw, Sparkles, Shield } from 'lucide-react';
 
+const GITHUB_REPO_URL = 'https://github.com/Doniraya/StayAwayWeb';
+
+// Векторная иконка GitHub
+const GithubIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+  </svg>
+);
+
 export default function App() {
   const [playerName, setPlayerName] = useState('');
   const [roomCodeInput, setRoomCodeInput] = useState('');
@@ -15,7 +24,6 @@ export default function App() {
   const [doorIndex, setDoorIndex] = useState<number | null>(null);
   const [showLog, setShowLog] = useState(false);
 
-  // Модалка результатов (Анализ / Виски)
   const [revealData, setRevealData] = useState<{
     type: 'ANALYSIS' | 'WHISKEY';
     targetName?: string;
@@ -136,7 +144,6 @@ export default function App() {
     }
   };
 
-  // 🛡️ Отмена обмена картой "Нет уж, спасибо!"
   const handleCancelTradeNoThanks = () => {
     if (!gameState || !myPlayerId || !activePlayer) return;
     const noThanksCard = activePlayer.hand.find(c => c.cardId === 'NO_THANKS');
@@ -150,7 +157,6 @@ export default function App() {
     }
   };
 
-  // 🛡️ Ответ на атаку Огнемётом ("Мимо!")
   const handleDefendAttack = (defenseCardId?: string) => {
     if (!gameState || !myPlayerId || !activePlayerId) return;
     socket.emit('defend_attack', {
@@ -184,7 +190,18 @@ export default function App() {
   // 1. ВХОД
   if (!gameState) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4 relative">
+        <a
+          href={GITHUB_REPO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute top-6 right-6 text-slate-400 hover:text-white transition flex items-center gap-2 text-xs bg-slate-900 border border-slate-800 px-3.5 py-2 rounded-xl shadow-lg"
+          title="Репозиторий проекта на GitHub"
+        >
+          <GithubIcon className="w-4 h-4 text-white" />
+          <span className="font-semibold">GitHub</span>
+        </a>
+
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md w-full shadow-2xl space-y-6">
           <div className="text-center space-y-2">
             <h1 className="text-4xl font-extrabold tracking-wider text-red-500 flex items-center justify-center gap-2">
@@ -216,7 +233,18 @@ export default function App() {
   // 2. ЛОББИ
   if (gameState.phase === 'LOBBY') {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4 relative">
+        <a
+          href={GITHUB_REPO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute top-6 right-6 text-slate-400 hover:text-white transition flex items-center gap-2 text-xs bg-slate-900 border border-slate-800 px-3.5 py-2 rounded-xl shadow-lg"
+          title="Репозиторий проекта на GitHub"
+        >
+          <GithubIcon className="w-4 h-4 text-white" />
+          <span className="font-semibold">GitHub</span>
+        </a>
+
         <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-lg w-full space-y-6">
           <div className="flex justify-between items-center border-b border-slate-800 pb-4">
             <div>
@@ -259,7 +287,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-4 overflow-hidden relative">
       
-      {/* 🏆 ЭКРАН ПОБЕДЫ И ВСКРЫТИЕ РОЛЕЙ */}
+      {/* 🏆 ЭКРАН ПОБЕДЫ */}
       {gameState.phase === 'GAME_OVER' && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
           <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`border-4 p-8 rounded-3xl max-w-2xl w-full shadow-2xl space-y-6 text-center relative overflow-hidden ${gameState.winnerRole === 'HUMANS' ? 'bg-slate-900 border-emerald-500 shadow-emerald-950' : 'bg-slate-900 border-red-600 shadow-red-950'}`}>
@@ -305,7 +333,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 🛡️ МОДАЛКА РЕАКЦИИ НА АТАКУ ОГНЕМЁТОМ */}
+      {/* 🛡️ МОДАЛКА РЕАКЦИИ */}
       {gameState.phase === 'RESPOND' && (
         <div className="fixed inset-0 z-50 bg-red-950/80 backdrop-blur-md flex items-center justify-center p-4">
           <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-slate-900 border-4 border-red-600 p-6 rounded-3xl max-w-md w-full shadow-2xl text-center space-y-4">
@@ -356,7 +384,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Шапка */}
+      {/* Шапка 2D Стола */}
       <div className="flex flex-wrap justify-between items-center bg-slate-900/90 border border-slate-800 p-4 rounded-xl gap-4">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-bold text-red-500 flex items-center gap-2">
@@ -379,12 +407,23 @@ export default function App() {
           </div>
         )}
 
-        <div className="flex items-center gap-4 text-sm font-semibold">
+        <div className="flex items-center gap-3 text-sm font-semibold">
           <span>Фаза: <strong className="text-amber-400">{gameState.phase}</strong></span>
           <span>Ходит: <strong className="text-blue-400">{currentTurnPlayer?.name}</strong></span>
+          
           <button onClick={() => setShowLog(!showLog)} className="text-xs bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded flex items-center gap-1 text-slate-300">
             <FileText className="w-3.5 h-3.5" /> Лог
           </button>
+
+          <a
+            href={GITHUB_REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs bg-slate-800 hover:bg-slate-700 p-1.5 rounded text-slate-300 transition border border-slate-700 flex items-center gap-1"
+            title="Открыть репозиторий GitHub"
+          >
+            <GithubIcon className="w-4 h-4 text-white" />
+          </a>
         </div>
       </div>
 
@@ -548,7 +587,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Ответ на обмен + ЗАЩИТА "Нет уж, спасибо!" */}
+        {/* Ответ на обмен */}
         {gameState.phase === 'TRADE_ACCEPT' && gameState.pendingTrade?.toPlayerId === activePlayerId && (
           <div className="flex flex-col items-center space-y-2">
             <span className="text-xs font-bold text-amber-400 animate-bounce">
