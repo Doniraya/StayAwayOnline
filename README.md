@@ -164,17 +164,3 @@ npm run dev
 ## 📝 Лицензия
 
 `Распространяется под лицензией MIT. Подробности в файле LICENSE.`
-
-```
-
----
-
-### Опубликуй на GitHub:
-
-Сохрани файл, открой терминал в корне `StayAwayOnline` и отправь изменения:
-
-```bash
-git add README.md
-git commit -m "Add rich professional README with architecture, badges and roadmap"
-git push
-```
