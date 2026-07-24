@@ -7,7 +7,6 @@ interface CardRule {
   type: 'STAY_AWAY' | 'PANIC';
   imageUrl: string;
   description: string;
-  // Таблица кол-ва карт для 4..12 игроков: [4, 5, 6, 7, 8, 9, 10, 11, 12]
   quantities: { [playerCount: number]: number };
 }
 
@@ -30,12 +29,12 @@ const CARD_RULES: CardRule[] = [
     quantities: { 4: 8, 5: 8, 6: 10, 7: 12, 8: 13, 9: 15, 10: 17, 11: 20, 12: 20 }
   },
 
-  // --- ДЕЙСТВИЯ: Узнать карты ---
+  // --- ДЕЙСТВИЯ ---
   {
-    cardId: 'SUSPICION' as any,
+    cardId: 'SUSPICION',
     name: 'Подозрение',
     type: 'STAY_AWAY',
-    imageUrl: '/cards/analysis.png',
+    imageUrl: '/cards/suspicion.png',
     description: 'Посмотрите 1 случайную карту соседа.',
     quantities: { 4: 4, 5: 4, 6: 4, 7: 5, 8: 6, 9: 7, 10: 8, 11: 8, 12: 8 }
   },
@@ -47,10 +46,8 @@ const CARD_RULES: CardRule[] = [
     description: 'Посмотрите все карты на руке соседа.',
     quantities: { 4: 0, 5: 1, 6: 2, 7: 2, 8: 2, 9: 3, 10: 3, 11: 3, 12: 3 }
   },
-
-  // --- ДЕЙСТВИЯ: Обменять карты ---
   {
-    cardId: 'TEMPTATION' as any,
+    cardId: 'TEMPTATION',
     name: 'Соблазн',
     type: 'STAY_AWAY',
     imageUrl: '/cards/no_thanks.png',
@@ -58,33 +55,37 @@ const CARD_RULES: CardRule[] = [
     quantities: { 4: 2, 5: 2, 6: 3, 7: 4, 8: 5, 9: 5, 10: 6, 11: 7, 12: 7 }
   },
   {
-    cardId: 'PERSISTENCE' as any,
+    cardId: 'PERSISTENCE',
     name: 'Упорство',
     type: 'STAY_AWAY',
     imageUrl: '/cards/no_thanks.png',
     description: 'Повторите попытку обмена.',
     quantities: { 4: 2, 5: 2, 6: 3, 7: 3, 8: 3, 9: 4, 10: 5, 11: 5, 12: 5 }
   },
-
-  // --- ДЕЙСТВИЯ: Смена мест / Направления ---
   {
     cardId: 'YOU_BETTER_RUN',
     name: 'Сматывай удочки!',
     type: 'STAY_AWAY',
     imageUrl: '/cards/miss.png',
-    description: 'Смените место с любым игроком не в карантине.',
+    description: 'Смените место с любым игроком.',
     quantities: { 4: 2, 5: 2, 6: 2, 7: 3, 8: 3, 9: 4, 10: 4, 11: 5, 12: 5 }
   },
   {
-    cardId: 'CHANGE_SEAT',
+    cardId: 'CHANGE_SEATS',
     name: 'Меняемся местами!',
     type: 'STAY_AWAY',
-    imageUrl: '/cards/miss.png',
+    imageUrl: '/cards/change_seats.png',
     description: 'Поменяйтесь местами с соседним игроком.',
     quantities: { 4: 2, 5: 2, 6: 2, 7: 3, 8: 3, 9: 4, 10: 4, 11: 5, 12: 5 }
   },
-
-  // --- ДЕЙСТВИЯ: Особые ---
+  {
+    cardId: 'LOOK_AROUND',
+    name: 'Гляди по сторонам',
+    type: 'STAY_AWAY',
+    imageUrl: '/cards/panic_look_around.png',
+    description: 'Все смотрят карту соседа справа.',
+    quantities: { 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 2, 10: 2, 11: 2, 12: 2 }
+  },
   {
     cardId: 'FLAMETHROWER',
     name: 'Огнемёт',
@@ -148,50 +149,112 @@ const CARD_RULES: CardRule[] = [
 
   // --- КАРТЫ ПАНИКИ ---
   {
-    cardId: 'PANIC_LOOK_AROUND',
-    name: 'Гляди по сторонам',
+    cardId: 'PANIC_PARTY',
+    name: 'И это вы называете вечеринкой?',
     type: 'PANIC',
-    imageUrl: '/cards/panic_look_around.png',
-    description: 'Все смотрят карту соседа справа.',
-    quantities: { 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 2, 10: 2, 11: 2, 12: 2 }
+    imageUrl: '/cards/panic_party.png',
+    description: 'Все игроки меняются местами.',
+    quantities: { 4: 0, 5: 1, 6: 1, 7: 1, 8: 1, 9: 2, 10: 2, 11: 2, 12: 2 }
   },
   {
-    cardId: 'PANIC_CHAIN_REACTION' as any,
+    cardId: 'PANIC_GET_OUT',
+    name: 'Убирайся прочь!',
+    type: 'PANIC',
+    imageUrl: '/cards/panic_get_out.png',
+    description: 'Поменяйтесь местами с любым игроком.',
+    quantities: { 4: 0, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 12: 1 }
+  },
+  {
+    cardId: 'PANIC_ONE_TWO',
+    name: 'Раз, два...',
+    type: 'PANIC',
+    imageUrl: '/cards/panic_one_two.png',
+    description: 'Поменяйтесь местами с третьим игроком.',
+    quantities: { 4: 0, 5: 1, 6: 1, 7: 1, 8: 1, 9: 2, 10: 2, 11: 2, 12: 2 }
+  },
+  {
+    cardId: 'PANIC_CHAIN_REACTION',
     name: 'Цепная реакция',
     type: 'PANIC',
-    imageUrl: '/cards/panic_look_around.png',
-    description: 'Все игроки совершают обмен одновременно.',
+    imageUrl: '/cards/panic_chain_reaction.png',
+    description: 'Все игроки одновременно отдают 1 карту.',
     quantities: { 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 2, 10: 2, 11: 2, 12: 2 }
   },
   {
-    cardId: 'PANIC_BLIND_DATE' as any,
+    cardId: 'PANIC_BLIND_DATE',
     name: 'Свидание вслепую',
     type: 'PANIC',
-    imageUrl: '/cards/panic_look_around.png',
-    description: 'Сбросьте карту и возьмите новую вслепую.',
+    imageUrl: '/cards/panic_blind_date.png',
+    description: 'Поменяйте 1 карту с колодой.',
     quantities: { 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 2, 10: 2, 11: 2, 12: 2 }
   },
   {
-    cardId: 'PANIC_THREE_FOUR' as any,
+    cardId: 'PANIC_FRIENDS',
+    name: 'Давай дружить?',
+    type: 'PANIC',
+    imageUrl: '/cards/panic_friends.png',
+    description: 'Поменяйтесь 1 картой с любым игроком.',
+    quantities: { 4: 0, 5: 0, 6: 0, 7: 1, 8: 1, 9: 2, 10: 2, 11: 2, 12: 2 }
+  },
+  {
+    cardId: 'PANIC_FORGETFULNESS',
+    name: 'Забывчивость',
+    type: 'PANIC',
+    imageUrl: '/cards/panic_forgetfulness.png',
+    description: 'Сбросьте 3 карты с руки.',
+    quantities: { 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 12: 1 }
+  },
+  {
+    cardId: 'PANIC_BETWEEN_US',
+    name: 'Только между нами...',
+    type: 'PANIC',
+    imageUrl: '/cards/panic_between_us.png',
+    description: 'Покажите карты соседа только вам.',
+    quantities: { 4: 0, 5: 0, 6: 0, 7: 1, 8: 1, 9: 2, 10: 2, 11: 2, 12: 2 }
+  },
+  {
+    cardId: 'PANIC_CONFESSION',
+    name: 'Время признаний',
+    type: 'PANIC',
+    imageUrl: '/cards/panic_confession.png',
+    description: 'Все показывают свои карты.',
+    quantities: { 4: 0, 5: 0, 6: 0, 7: 0, 8: 1, 9: 1, 10: 1, 11: 1, 12: 1 }
+  },
+  {
+    cardId: 'PANIC_OOPS',
+    name: 'Уупс!',
+    type: 'PANIC',
+    imageUrl: '/cards/panic_oops.png',
+    description: 'Покажите все карты всем.',
+    quantities: { 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 1, 11: 1, 12: 1 }
+  },
+  {
+    cardId: 'PANIC_THREE_FOUR',
     name: '...Три, четыре...',
     type: 'PANIC',
-    imageUrl: '/cards/panic_look_around.png',
-    description: 'Уберите препятствия или сбросьте карты.',
+    imageUrl: '/cards/panic_three_four.png',
+    description: 'Сбросьте все заколоченные двери.',
     quantities: { 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 2, 10: 2, 11: 2, 12: 2 }
+  },
+  {
+    cardId: 'PANIC_OLD_ROPES',
+    name: 'Старые верёвки',
+    type: 'PANIC',
+    imageUrl: '/cards/panic_old_ropes.png',
+    description: 'Сбросьте все карты Карантина.',
+    quantities: { 4: 0, 5: 0, 6: 1, 7: 1, 8: 1, 9: 2, 10: 2, 11: 2, 12: 2 }
   }
 ];
 
 export function generateDeck(playerCount: number): { deck: Card[]; thingCard: Card } {
-  // Ограничиваем состав от 4 до 12 игроков
   const validPlayerCount = Math.min(Math.max(playerCount, 4), 12);
   const deckCards: Card[] = [];
 
   CARD_RULES.forEach((rule) => {
-    if (rule.cardId === 'THING') return; // "Нечто" обрабатываем отдельно
+    if (rule.cardId === 'THING') return;
 
     const count = rule.quantities[validPlayerCount] || 0;
     for (let i = 0; i < count; i++) {
-      // Подставляем разные картинки Заражения для эстетики
       const imgUrl = rule.cardId === 'INFECTED' 
         ? `/cards/infected_${(i % 8) + 1}.png` 
         : rule.imageUrl;
@@ -208,10 +271,8 @@ export function generateDeck(playerCount: number): { deck: Card[]; thingCard: Ca
     }
   });
 
-  // Перемешиваем колоду
   const shuffled = deckCards.sort(() => Math.random() - 0.5);
 
-  // Создаем карту НЕЧТО
   const thingCard: Card = {
     id: uuidv4(),
     cardId: 'THING',

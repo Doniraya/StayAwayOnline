@@ -4,4 +4,4 @@ dist/
 Thumbs.db
 *.log
 .env
-cards
+other
