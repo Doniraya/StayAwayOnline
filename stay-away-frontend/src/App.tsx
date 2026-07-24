@@ -4,7 +4,7 @@ import type { GameState, Card } from './types/game';
 import { motion } from 'framer-motion';
 import { Users, Bot, Play, ShieldAlert, Flame, Eye, FileText, Ban, Lock, Biohazard, X, Trophy, Skull, RotateCcw, Sparkles, Shield } from 'lucide-react';
 
-const GITHUB_REPO_URL = 'https://github.com/Doniraya/StayAwayWeb';
+const GITHUB_REPO_URL = 'https://github.com/Doniraya/StayAwayOnline';
 
 // Векторная иконка GitHub
 const GithubIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
