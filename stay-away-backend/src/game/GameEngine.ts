@@ -86,11 +86,12 @@ export class GameEngine {
     const room = this.rooms.get(roomId);
     if (!room || room.players.length < 4) return false;
 
-    const { deckCards, thingCard } = generateDeck(room.players.length);
+    const { deck, thingCard } = generateDeck(room.players.length);
 
-    // В стартовую руку могут попадать любые карты Stay Away (включая Заражение!), но НЕ Паника!
-    const initialStayAwayCards = deckCards.filter(c => c.type === 'STAY_AWAY');
-    const panicCards = deckCards.filter(c => c.type === 'PANIC');
+    // В стартовую руку могут попадать только карты Stay Away (БЕЗ Заражения и Паники)!
+    const initialStayAwayCards = deck.filter(c => c.type === 'STAY_AWAY' && c.cardId !== 'INFECTED');
+    const infectedCards = deck.filter(c => c.cardId === 'INFECTED');
+    const panicCards = deck.filter(c => c.type === 'PANIC');
 
     initialStayAwayCards.sort(() => Math.random() - 0.5);
 
@@ -113,8 +114,8 @@ export class GameEngine {
       }
     });
 
-    // Собираем общую колоду из оставшихся карт + Паника
-    const mainDrawDeck = [...initialStayAwayCards, ...panicCards].sort(() => Math.random() - 0.5);
+    // Собираем общую колоду из оставшихся карт + Инфекция + Паника
+    const mainDrawDeck = [...initialStayAwayCards, ...infectedCards, ...panicCards].sort(() => Math.random() - 0.5);
 
     room.deck = mainDrawDeck;
     room.discardPile = [];
@@ -425,6 +426,13 @@ export class GameEngine {
       return { success: false, error: 'Человек не может передавать карту "Заражение!"' };
     }
 
+    if (player.role === 'INFECTED' && card.cardId === 'INFECTED') {
+      const receiver = room.players.find(p => p.id === room.pendingTrade!.toPlayerId);
+      if (receiver && receiver.role !== 'THING') {
+        return { success: false, error: 'Зараженный может передать инфекцию только Нечто!' };
+      }
+    }
+
     room.pendingTrade.offeredCard = card;
     room.phase = 'TRADE_ACCEPT';
     room.log.push(`${player.name} предложил карту на обмен.`);
@@ -455,15 +463,24 @@ export class GameEngine {
       return { success: false, error: 'Человек не может передавать карту "Заражение!"' };
     }
 
+    if (receiver.role === 'INFECTED' && receiverCard.cardId === 'INFECTED') {
+      if (sender.role !== 'THING') {
+        return { success: false, error: 'Зараженный может передать инфекцию только Нечто!' };
+      }
+    }
+
     sender.hand = sender.hand.filter(c => c.id !== senderCard.id);
     receiver.hand.splice(receiverCardIndex, 1);
 
     sender.hand.push(receiverCard);
     receiver.hand.push(senderCard);
 
-    if (sender.role === 'THING' && senderCard.cardId === 'INFECTED' && receiver.role === 'HUMAN') {
+    if (senderCard.cardId === 'INFECTED' && sender.role === 'THING' && receiver.role === 'HUMAN') {
       receiver.role = 'INFECTED';
-      room.log.push(`🤫 ${receiver.name} был ТАЙНО ЗАРАЖЕН!`);
+    }
+
+    if (receiverCard.cardId === 'INFECTED' && receiver.role === 'THING' && sender.role === 'HUMAN') {
+      sender.role = 'INFECTED';
     }
 
     room.log.push(`Обмен между ${sender.name} и ${receiver.name} завершен.`);
