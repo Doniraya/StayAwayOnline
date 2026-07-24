@@ -25,6 +25,9 @@ function broadcastGameState(roomId: string) {
       io.to(player.id).emit('game_state_updated', sanitizedState);
     }
   });
+
+  // 🤖 Автоматически запускаем ИИ Бота, если сейчас его черед действовать!
+  gameEngine.checkAndExecuteBotTurn(roomId, () => broadcastGameState(roomId));
 }
 
 io.on('connection', (socket) => {
@@ -56,6 +59,12 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('restart_game', ({ roomId, requesterId }) => {
+    if (gameEngine.restartGame(roomId, requesterId)) {
+      broadcastGameState(roomId);
+    }
+  });
+
   socket.on('draw_card', ({ roomId, requesterId, targetPlayerId }) => {
     const res = gameEngine.drawCard(roomId, requesterId, targetPlayerId);
     if (!res.success) {
@@ -72,10 +81,8 @@ io.on('connection', (socket) => {
     } else {
       if (res.revealData) {
         if (res.revealData.type === 'ANALYSIS') {
-          // Анализ отправляем ПЕРСОНАЛЬНО тому, кто прожал карту (requesterId)
           io.to(requesterId).emit('reveal_event', res.revealData);
         } else {
-          // Виски показываем ВСЕМ
           io.to(roomId).emit('reveal_event', res.revealData);
         }
       }
@@ -110,13 +117,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('restart_game', ({ roomId, requesterId }) => {
-    if (gameEngine.restartGame(roomId, requesterId)) {
-      broadcastGameState(roomId);
-    }
-  });
-
-  // Ответ на Огнемёт ("Мимо!")
   socket.on('defend_attack', ({ roomId, requesterId, victimId, defenseCardId }) => {
     const res = gameEngine.respondToAttack(roomId, requesterId, victimId, defenseCardId);
     if (!res.success) {
@@ -126,7 +126,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Отмена обмена ("Нет уж, спасибо!")
   socket.on('cancel_trade_no_thanks', ({ roomId, requesterId, targetPlayerId, cardId }) => {
     const res = gameEngine.cancelTradeWithNoThanks(roomId, requesterId, targetPlayerId, cardId);
     if (!res.success) {
