@@ -19,6 +19,24 @@ export default function App() {
   const [revealData, setRevealData] = useState<RevealEventData | null>(null);
 
   useEffect(() => {
+    const savedSession = localStorage.getItem('stayAwaySession');
+    if (savedSession) {
+      try {
+        const { roomId, playerId, playerName } = JSON.parse(savedSession);
+        socket.emit('reconnect_user', { roomId, playerId }, (res: { success: boolean }) => {
+          if (res.success) {
+            setMyPlayerId(playerId);
+            setControlledPlayerId(playerId);
+            setPlayerName(playerName);
+          } else {
+            localStorage.removeItem('stayAwaySession');
+          }
+        });
+      } catch {
+        localStorage.removeItem('stayAwaySession');
+      }
+    }
+
     socket.on('game_state_updated', (state: GameState) => {
       setGameState(state);
     });
@@ -63,6 +81,7 @@ export default function App() {
       if (res.success) {
         setMyPlayerId(res.playerId);
         setControlledPlayerId(res.playerId);
+        localStorage.setItem('stayAwaySession', JSON.stringify({ roomId: res.roomId, playerId: res.playerId, playerName }));
       }
     });
   };
@@ -73,6 +92,7 @@ export default function App() {
       if (res.success) {
         setMyPlayerId(res.playerId);
         setControlledPlayerId(res.playerId);
+        localStorage.setItem('stayAwaySession', JSON.stringify({ roomId: roomCodeInput.toUpperCase(), playerId: res.playerId, playerName }));
       } else {
         alert(res.message || 'Ошибка входа');
       }
@@ -90,7 +110,18 @@ export default function App() {
   const handleRestartGame = () => {
     if (gameState && myPlayerId) {
       socket.emit('restart_game', { roomId: gameState.roomId, requesterId: myPlayerId });
+      // Clean local storage since going to lobby might require clearing the current session, or keep it?
+      // User said "или при экране 'GAME_OVER' + кнопка "В лобби" очищай localStorage, если нужно"
+      // Actually we probably want to stay in the room. I will create a separate "Leave" function.
     }
+  };
+
+  const handleLeaveRoom = () => {
+    localStorage.removeItem('stayAwaySession');
+    setGameState(null);
+    setMyPlayerId(null);
+    setControlledPlayerId(null);
+    setRoomCodeInput('');
   };
 
   const handleDrawCard = () => {
@@ -208,13 +239,16 @@ export default function App() {
 
   if (gameState.phase === 'LOBBY') {
     return (
-      <LobbyScreen
-        gameState={gameState}
-        myPlayerId={myPlayerId}
-        handleAddBot={handleAddBot}
-        handleStartGame={handleStartGame}
-        isHost={isHost}
-      />
+      <div className="relative">
+        <button onClick={handleLeaveRoom} className="absolute top-4 left-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition">Выйти из комнаты</button>
+        <LobbyScreen
+          gameState={gameState}
+          myPlayerId={myPlayerId}
+          handleAddBot={handleAddBot}
+          handleStartGame={handleStartGame}
+          isHost={isHost}
+        />
+      </div>
     );
   }
 
@@ -229,6 +263,7 @@ export default function App() {
       setShowLog={setShowLog}
       handleSelectSeat={handleSelectSeat}
       handleRestartGame={handleRestartGame}
+      handleLeaveRoom={handleLeaveRoom}
       defenseCardsInHand={defenseCardsInHand}
       handleDefendAttack={handleDefendAttack}
       currentTurnPlayer={currentTurnPlayer}
