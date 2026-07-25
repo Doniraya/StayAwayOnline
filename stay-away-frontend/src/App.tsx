@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { socket } from './socket';
 import type { GameState, Card, RevealEventData } from './types/game';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Bot, Play, ShieldAlert, Flame, Eye, FileText, Ban, Lock, Biohazard, X, Trophy, Skull, RotateCcw, Sparkles, Shield } from 'lucide-react';
 
 const GITHUB_REPO_URL = 'https://github.com/Doniraya/StayAwayOnline';
@@ -486,6 +486,9 @@ export default function App() {
             return (
               <motion.div
                 key={player.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={!isSelectedSeat && player.isAlive ? { scale: 1.05 } : {}}
                 onClick={() => isHost && handleSelectSeat(player.id)}
                 style={{ transform: `translate(${x}px, ${y}px)` }}
                 className={`absolute p-3 rounded-xl border flex flex-col items-center w-32 backdrop-blur shadow-lg cursor-pointer transition-all ${
@@ -610,6 +613,7 @@ export default function App() {
 
         {/* Рука кресла */}
         <div className="flex gap-3 overflow-x-auto max-w-full p-2">
+          <AnimatePresence mode="popLayout">
           {activePlayer?.hand.map((card) => {
             const isSelected = card.id === selectedCardId;
             const illegal = isIllegalTradeCard(card);
@@ -617,7 +621,10 @@ export default function App() {
             return (
               <motion.div
                 key={card.id}
-                whileHover={illegal ? {} : { y: -8 }}
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.5, y: -50 }}
+                whileHover={illegal ? {} : { scale: 1.05, y: -10 }}
                 onClick={() => !illegal && setSelectedCardId(card.id)}
                 className={`w-32 h-48 rounded-xl overflow-hidden border-2 transition shadow-xl relative cursor-pointer bg-slate-950 ${
                   illegal ? 'opacity-40 grayscale cursor-not-allowed border-slate-800' : 'border-slate-700'
@@ -635,6 +642,7 @@ export default function App() {
               </motion.div>
             );
           })}
+          </AnimatePresence>
         </div>
       </div>
     </div>
