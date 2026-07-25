@@ -193,7 +193,7 @@ export class GameEngine {
   }
 
   // 8. Добор карты
-  public drawCard(roomId: string, requesterId: string, targetPlayerId: string): { success: boolean; error?: string } {
+  public drawCard(roomId: string, requesterId: string, targetPlayerId: string): { success: boolean; error?: string; revealData?: any } {
     const room = this.rooms.get(roomId);
     if (!room || room.phase !== 'DRAW') return { success: false, error: 'Не фаза добора карт' };
     if (!this.canControlPlayer(room, requesterId, targetPlayerId)) return { success: false, error: 'Нет прав доступа' };
@@ -213,10 +213,11 @@ export class GameEngine {
 
     // 🚨 ЕСЛИ ВЫТЯНУТА КАРТА ПАНИКИ — ОНА НЕ ИДЕТ В РУКУ, А СРАЗУ В СБРОС!
     if (drawnCard.type === 'PANIC') {
+      const revealData = this.resolveInstantPanic(room, currentPlayer, drawnCard);
       room.discardPile.push(drawnCard);
       room.log.push(`🚨 ПАНИКА! ${currentPlayer.name} вытащил карту Паники "${drawnCard.name}"! Карта сброшена.`);
       room.phase = 'PLAY_OR_DISCARD';
-      return { success: true };
+      return { success: true, revealData };
     }
 
     currentPlayer.hand.push(drawnCard);
@@ -224,6 +225,60 @@ export class GameEngine {
 
     room.phase = 'PLAY_OR_DISCARD';
     return { success: true };
+  }
+
+  private resolveInstantPanic(room: GameState, player: Player, panicCard: Card): any {
+    switch (panicCard.cardId) {
+      case 'PANIC_OLD_ROPES': {
+        for (const p of room.players) {
+          p.isInQuarantine = false;
+          p.quarantineTurnsLeft = 0;
+        }
+        room.log.push(`🚨 ПАНИКА! "Старые верёвки" - Все карантины сняты!`);
+        return null;
+      }
+      case 'PANIC_THREE_FOUR': {
+        room.barredDoors.fill(false);
+        room.log.push(`🚨 ПАНИКА! "...Три, четыре..." - Все двери открыты!`);
+        return null;
+      }
+      case 'PANIC_OOPS': {
+        room.log.push(`🚨 ПАНИКА! "Уупс!" - ${player.name} случайно показывает все свои карты!`);
+        return { type: 'OOPS', playerName: player.name, cards: [...player.hand] };
+      }
+      case 'PANIC_FORGETFULNESS': {
+        let discardCount = 0;
+        const toDiscard: Card[] = [];
+
+        for (const c of player.hand) {
+          if (discardCount >= 3) break;
+
+          if (c.cardId === 'THING') continue;
+
+          if (player.role === 'INFECTED' && c.cardId === 'INFECTED') {
+            const infectedCardsCount = player.hand.filter(card => card.cardId === 'INFECTED').length;
+            const discardedInfectedCount = toDiscard.filter(card => card.cardId === 'INFECTED').length;
+            if (infectedCardsCount - discardedInfectedCount <= 1) continue;
+          }
+
+          toDiscard.push(c);
+          discardCount++;
+        }
+
+        for (const c of toDiscard) {
+          const idx = player.hand.findIndex(handCard => handCard.id === c.id);
+          if (idx !== -1) {
+            const [discarded] = player.hand.splice(idx, 1);
+            room.discardPile.push(discarded);
+            this.drawReplacementCard(room, player);
+          }
+        }
+        room.log.push(`🚨 ПАНИКА! "Забывчивость" - ${player.name} сбрасывает ${discardCount} карты и берет новые!`);
+        return null;
+      }
+      default:
+        return null;
+    }
   }
 
   private isDoorBarredBetween(room: GameState, index1: number, index2: number): boolean {
