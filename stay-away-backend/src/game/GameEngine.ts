@@ -224,6 +224,13 @@ export class GameEngine {
 
       room.discardPile.push(drawnCard);
       room.log.push(`🚨 ПАНИКА! ${currentPlayer.name} вытащил карту Паники "${drawnCard.name}"! Карта сброшена.`);
+
+      if ((room as any).forceEndTurn) {
+        (room as any).forceEndTurn = false;
+        this.nextTurn(room);
+        return { success: true, revealData };
+      }
+
       room.phase = 'PLAY_OR_DISCARD';
       return { success: true, revealData };
     }
@@ -297,6 +304,42 @@ export class GameEngine {
 
       revealData = { type: 'PANIC_BETWEEN_US', targetName: victim.name, cards: currentPlayer.hand };
       room.log.push(`🚨 ПАНИКА! "Только между нами..." - ${currentPlayer.name} показывает свои карты игроку ${victim.name}!`);
+    } else if (panicCard.cardId === 'PANIC_ONE_TWO') {
+      if (!victimId) return { success: false, error: 'Необходимо выбрать цель' };
+      const victim = room.players.find(p => p.id === victimId);
+      if (!victim) return { success: false, error: 'Цель не найдена' };
+      if (victim.isInQuarantine || currentPlayer.isInQuarantine) return { success: false, error: 'Игрок в карантине, с ним нельзя поменяться местами' };
+
+      const N = room.players.length;
+      const playerIndex = room.players.findIndex(p => p.id === currentPlayer.id);
+      const victimIndex = room.players.findIndex(p => p.id === victimId);
+
+      if (victimIndex !== (playerIndex + 3) % N && victimIndex !== (playerIndex - 3 + N) % N) {
+        return { success: false, error: 'Цель должна находиться ровно через 2 человек от вас' };
+      }
+
+      room.players[playerIndex] = victim;
+      room.players[victimIndex] = currentPlayer;
+
+      room.currentTurnIndex = victimIndex;
+
+      room.log.push(`🚨 ПАНИКА! "Раз, два..." - ${currentPlayer.name} меняется местами с ${victim.name}!`);
+    } else if (panicCard.cardId === 'PANIC_FRIENDS') {
+      if (!victimId) return { success: false, error: 'Необходимо выбрать цель' };
+      const victim = room.players.find(p => p.id === victimId);
+      if (!victim) return { success: false, error: 'Цель не найдена' };
+      if (victim.isInQuarantine) return { success: false, error: 'Игрок в карантине, с ним нельзя меняться картами' };
+
+      room.pendingTrade = {
+        fromPlayerId: currentPlayer.id,
+        toPlayerId: victim.id,
+        isSeduction: true
+      };
+      room.phase = 'TRADE';
+      room.pendingPanic = undefined;
+      room.discardPile.push(panicCard);
+      room.log.push(`🚨 ПАНИКА! "Давай дружить?" - ${currentPlayer.name} принудительно обменивается картой с ${victim.name}!`);
+      return { success: true };
     } else {
       return { success: false, error: 'Неизвестная интерактивная карта паники' };
     }
@@ -361,6 +404,64 @@ export class GameEngine {
         }
         room.log.push(`🚨 ПАНИКА! "Забывчивость" - ${player.name} сбрасывает ${discardCount} карты и берет новые!`);
         return null;
+      }
+      case 'PANIC_PARTY': {
+        for (const p of room.players) {
+          p.isInQuarantine = false;
+          p.quarantineTurnsLeft = 0;
+        }
+        room.barredDoors.fill(false);
+        for (let i = 0; i < room.players.length - 1; i += 2) {
+          const temp = room.players[i];
+          room.players[i] = room.players[i + 1];
+          room.players[i + 1] = temp;
+        }
+        const newPlayerIndex = room.players.findIndex(p => p.id === player.id);
+        room.currentTurnIndex = newPlayerIndex;
+        room.log.push(`🚨 ПАНИКА! "И это вы называете вечеринкой?" - Карантины сняты, двери открыты, все меняются местами!`);
+        return null;
+      }
+      case 'PANIC_CHAIN_REACTION': {
+        const N = room.players.length;
+        const collectedCards: { playerId: string; card: Card }[] = [];
+        for (const p of room.players) {
+          if (!p.isAlive) continue;
+          const legalCards = p.hand.filter(c => {
+            if (c.cardId === 'THING') return false;
+            if (p.role === 'HUMAN' && c.cardId === 'INFECTED') return false;
+            return true;
+          });
+          if (legalCards.length > 0) {
+            const randomCard = legalCards[randomInt(legalCards.length)];
+            const idx = p.hand.findIndex(c => c.id === randomCard.id);
+            const [removedCard] = p.hand.splice(idx, 1);
+            collectedCards.push({ playerId: p.id, card: removedCard });
+          }
+        }
+
+        for (const { playerId, card } of collectedCards) {
+          const pIndex = room.players.findIndex(p => p.id === playerId);
+          let nextIndex = pIndex;
+          do {
+            nextIndex = (nextIndex + room.direction + N) % N;
+          } while (!room.players[nextIndex].isAlive);
+
+          room.players[nextIndex].hand.push(card);
+        }
+
+        room.log.push(`🚨 ПАНИКА! "Цепная реакция" - Все игроки одновременно передали 1 случайную карту соседу!`);
+        (room as any).forceEndTurn = true;
+        return null;
+      }
+      case 'PANIC_CONFESSION': {
+        const cardsMap: Record<string, Card[]> = {};
+        for (const p of room.players) {
+          if (p.isAlive) {
+            cardsMap[p.name] = [...p.hand];
+          }
+        }
+        room.log.push(`🚨 ПАНИКА! "Время признаний" - Все показывают свои карты!`);
+        return { type: 'CONFESSION', cardsMap };
       }
       default:
         return undefined;
