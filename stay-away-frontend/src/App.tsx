@@ -13,6 +13,17 @@ const GithubIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
+const getDeckComposition = (playerCount: number) => {
+  const infectedCount = playerCount <= 6 ? "8-10" : playerCount <= 8 ? "12-14" : "16+";
+  return [
+    { label: 'Нечто', count: 1, color: 'text-red-500', icon: '💀' },
+    { label: 'Заражение', count: infectedCount, color: 'text-emerald-400', icon: '🦠' },
+    { label: 'Огнемёт', count: '~3', color: 'text-amber-500', icon: '🔥' },
+    { label: 'Карты Паники', count: '~20', color: 'text-purple-400', icon: '😱' },
+    { label: 'Защита и Действия', count: 'Много', color: 'text-blue-400', icon: '🛡️' },
+  ];
+};
+
 export default function App() {
   const [playerName, setPlayerName] = useState('');
   const [roomCodeInput, setRoomCodeInput] = useState('');
@@ -270,25 +281,57 @@ export default function App() {
             </button>
           </div>
 
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {gameState.players.map((p) => (
-              <div key={p.id} className="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-800">
-                <span className="font-medium flex items-center gap-2">
-                  {p.isBot ? <Bot className="w-4 h-4 text-emerald-400" /> : <Users className="w-4 h-4 text-blue-400" />}
-                  {p.name} {p.id === myPlayerId && <span className="text-xs text-slate-500">(Вы)</span>}
-                </span>
-                {p.isHost && <span className="text-xs bg-red-950 text-red-400 px-2 py-0.5 rounded border border-red-800">Хост</span>}
-              </div>
-            ))}
+          <div className="space-y-2 max-h-60 overflow-y-auto p-1">
+            <AnimatePresence>
+              {gameState.players.map((p, index) => (
+                <motion.div
+                  key={p.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ delay: index * 0.05 }}
+                  className={`flex justify-between items-center p-3 rounded-xl border transition-all hover:-translate-y-0.5 hover:shadow-md ${
+                    p.isHost
+                      ? 'bg-slate-900 border-amber-500/30 shadow-amber-500/10'
+                      : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <span className="font-medium flex items-center gap-2">
+                    {p.isBot ? (
+                      <Bot className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <Users className="w-4 h-4 text-blue-400" />
+                    )}
+                    {p.name} {p.id === myPlayerId && <span className="text-xs text-slate-500">(Вы)</span>}
+                  </span>
+                  {p.isHost && (
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-600 to-amber-500 text-slate-950 px-2 py-0.5 rounded shadow-sm">
+                      Хост
+                    </span>
+                  )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
 
           {isHost && (
             <div className="space-y-3 pt-2">
-              <button onClick={handleAddBot} className="w-full bg-slate-800 hover:bg-slate-700 text-emerald-400 font-semibold py-2.5 rounded-lg border border-emerald-900/50 flex items-center justify-center gap-2">
-                <Bot className="w-4 h-4" /> Добавить Бота
+              <button
+                onClick={handleAddBot}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-lg py-3 rounded-xl border-2 border-slate-700/50 hover:border-emerald-500/30 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg"
+              >
+                <Bot className="w-5 h-5" /> Добавить Бота
               </button>
-              <button onClick={handleStartGame} disabled={gameState.players.length < 4} className={`w-full font-bold py-3 rounded-lg transition flex items-center justify-center gap-2 ${gameState.players.length >= 4 ? 'bg-red-600 hover:bg-red-500 text-white shadow-lg' : 'bg-slate-800 text-slate-600 cursor-not-allowed'}`}>
-                <Play className="w-5 h-5" /> НАЧАТЬ ИГРУ
+              <button
+                onClick={handleStartGame}
+                disabled={gameState.players.length < 4}
+                className={`w-full font-black text-lg py-4 rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 ${
+                  gameState.players.length >= 4
+                    ? 'bg-gradient-to-b from-red-500 to-red-700 hover:from-red-400 hover:to-red-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)] border border-red-400/20'
+                    : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700/50'
+                }`}
+              >
+                <Play className="w-6 h-6" /> НАЧАТЬ ИГРУ
               </button>
             </div>
           )}
@@ -477,14 +520,34 @@ export default function App() {
         <div className="w-[600px] h-[350px] bg-slate-900/90 border-4 border-slate-800 rounded-full flex items-center justify-center shadow-2xl relative">
           
           <div className="flex gap-8 items-center">
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center group relative cursor-help">
               <div className="w-20 h-28 bg-slate-800 border-2 border-slate-700 rounded-xl overflow-hidden shadow-2xl relative">
                 <img src="/cards/back.png" alt="Рубашка" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center font-extrabold text-white text-base">
                   {gameState.deck.length}
                 </div>
               </div>
-              <span className="text-xs text-slate-400 mt-1.5 font-medium">Колода</span>
+              <span className="text-xs text-slate-400 mt-1.5 font-medium group-hover:text-amber-400 transition-colors">Колода</span>
+
+              <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none">
+                <div className="bg-slate-950/90 backdrop-blur-md border border-amber-500/30 rounded-xl p-3 shadow-2xl shadow-black">
+                  <div className="text-xs font-bold text-amber-500 mb-2 border-b border-amber-500/20 pb-1 text-center">
+                    Состав игры на {gameState.players.length} чел.
+                  </div>
+                  <div className="space-y-1.5">
+                    {getDeckComposition(gameState.players.length).map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-[10px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm">{item.icon}</span>
+                          <span className="text-slate-300">{item.label}</span>
+                        </div>
+                        <span className={`font-bold ${item.color}`}>{item.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 bg-slate-950/90 border-b border-r border-amber-500/30 rotate-45 backdrop-blur-md"></div>
+              </div>
             </div>
 
             <div className="flex flex-col items-center">
