@@ -447,7 +447,7 @@ export default function App() {
                   {Object.entries(revealData.cardsMap).map(([playerName, cards]) => (
                     <div key={playerName} className="space-y-2">
                       <h4 className="text-sm font-bold text-slate-300">{playerName}:</h4>
-                      <div className="flex gap-3 overflow-x-auto p-2 pt-24 pb-6">
+                      <div className="flex gap-3 overflow-x-auto px-12 pt-40 pb-6">
                         {cards.map((c, i) => (
                           <motion.div
                             key={i}
@@ -463,7 +463,7 @@ export default function App() {
                   ))}
                 </div>
               ) : (
-                <div className="flex gap-3 overflow-x-auto p-2 pt-24 pb-6">
+                <div className="flex gap-3 overflow-x-auto px-12 pt-40 pb-6">
                   {revealData.cards?.map((c, i) => (
                     <motion.div
                       key={i}
@@ -486,7 +486,7 @@ export default function App() {
       )}
 
       {/* Шапка 2D Стола */}
-      <div className="flex flex-wrap justify-between items-center bg-slate-900/90 border border-slate-800 p-4 rounded-xl gap-4">
+      <div className="flex flex-wrap justify-between items-center bg-slate-900/90 border border-slate-800 p-4 rounded-xl gap-4 relative z-50">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-bold text-red-500 flex items-center gap-2">
             <Flame className="w-5 h-5" /> НЕЧТО
@@ -786,7 +786,7 @@ export default function App() {
         )}
 
         {/* Рука кресла */}
-        <div className="flex gap-3 overflow-x-auto max-w-full p-2 pt-24 pb-6">
+        <div className="flex gap-3 overflow-x-auto max-w-full px-12 pt-40 pb-6">
           <AnimatePresence mode="popLayout">
           {activePlayer?.hand.map((card) => {
             const isSelected = card.id === selectedCardId;
