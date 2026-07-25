@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { socket } from './socket';
 import type { GameState, Card, RevealEventData } from './types/game';
 import { motion } from 'framer-motion';
@@ -50,7 +50,12 @@ export default function App() {
   const isHost = me?.isHost ?? false;
   
   const activePlayerId = controlledPlayerId || myPlayerId;
-  const activePlayer = gameState?.players.find((p) => p.id === activePlayerId);
+
+  const activePlayerIndex = useMemo(() => {
+    return gameState?.players.findIndex((p) => p.id === activePlayerId) ?? -1;
+  }, [gameState?.players, activePlayerId]);
+
+  const activePlayer = activePlayerIndex !== -1 && gameState ? gameState.players[activePlayerIndex] : undefined;
   const currentTurnPlayer = gameState ? gameState.players[gameState.currentTurnIndex] : null;
 
   const isControlledTurn = currentTurnPlayer?.id === activePlayerId;
@@ -62,7 +67,7 @@ export default function App() {
 
   const handleCreateRoom = () => {
     if (!playerName.trim()) return alert('Введите ваше имя!');
-    socket.emit('create_room', { playerName }, (res: any) => {
+    socket.emit('create_room', { playerName }, (res: { success: boolean; playerId: string }) => {
       if (res.success) {
         setMyPlayerId(res.playerId);
         setControlledPlayerId(res.playerId);
@@ -72,7 +77,7 @@ export default function App() {
 
   const handleJoinRoom = () => {
     if (!playerName.trim() || !roomCodeInput.trim()) return alert('Заполните данные!');
-    socket.emit('join_room', { roomId: roomCodeInput.toUpperCase(), playerName }, (res: any) => {
+    socket.emit('join_room', { roomId: roomCodeInput.toUpperCase(), playerName }, (res: { success: boolean; playerId: string }) => {
       if (res.success) {
         setMyPlayerId(res.playerId);
         setControlledPlayerId(res.playerId);
@@ -533,7 +538,7 @@ export default function App() {
                   <option value="">-- Выберите проход --</option>
                   {(() => {
                     const N = gameState.players.length;
-                    const myIndex = gameState.players.findIndex(p => p.id === activePlayerId);
+                    const myIndex = activePlayerIndex;
                     if (myIndex === -1) return null;
 
                     const leftNeighbor = gameState.players[(myIndex + 1) % N];
