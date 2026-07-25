@@ -269,7 +269,7 @@ export class GameEngine {
 
         if (hasDefense) {
           room.phase = 'RESPOND';
-          (room as any).pendingDefense = { attackerId: player.id, victimId: victim.id, attackType: 'FLAMETHROWER' };
+          room.pendingDefense = { attackerId: player.id, victimId: victim.id, attackType: 'FLAMETHROWER' };
           room.log.push(`⚠️ ${player.name} целует Огнемётом в ${victim.name}! ${victim.name} решается разыграть карту Защиты...`);
           return { success: true };
         }
@@ -343,7 +343,7 @@ export class GameEngine {
       room.log.push(`🔥 ${victim.name} не защитился и сгорел от Огнемёта!`);
     }
 
-    (room as any).pendingDefense = undefined;
+    room.pendingDefense = undefined;
 
     const isGameOver = this.checkVictory(room);
     if (!isGameOver) {
@@ -532,8 +532,8 @@ export class GameEngine {
       const target = room.players.find(p => p.id === room.pendingTrade!.toPlayerId);
       if (target?.isBot && target?.isAlive) actingBot = target;
     } 
-    else if (room.phase === 'RESPOND' && (room as any).pendingDefense) {
-      const victim = room.players.find(p => p.id === (room as any).pendingDefense.victimId);
+    else if (room.phase === 'RESPOND' && room.pendingDefense) {
+      const victim = room.players.find(p => p.id === room.pendingDefense!.victimId);
       if (victim?.isBot && victim?.isAlive) actingBot = victim;
     }
 
