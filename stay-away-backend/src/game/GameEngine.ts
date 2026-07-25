@@ -233,6 +233,29 @@ export class GameEngine {
     return false;
   }
 
+  private drawReplacementCard(room: GameState, player: Player) {
+    while (true) {
+      if (room.deck.length === 0) {
+        room.deck = [...room.discardPile];
+        secureShuffleInPlace(room.deck);
+        room.discardPile = [];
+        room.log.push('Колода закончилась! Сброс перемешан.');
+      }
+
+      const drawnCard = room.deck.pop();
+      if (!drawnCard) break; // Should not happen if deck generation is correct, but safe
+
+      if (drawnCard.type === 'PANIC') {
+        room.discardPile.push(drawnCard);
+        room.log.push(`🚨 ПАНИКА! ${player.name} вытащил карту Паники при замене, она уходит в сброс.`);
+      } else if (drawnCard.type === 'STAY_AWAY') {
+        player.hand.push(drawnCard);
+        room.log.push(`🛡️ ${player.name} взял карту на замену.`);
+        break;
+      }
+    }
+  }
+
   // 9. Розыгрыш карты
   public playCard(
     roomId: string,
@@ -274,7 +297,7 @@ export class GameEngine {
       }
     }
 
-    if (['FLAMETHROWER', 'ANALYSIS', 'QUARANTINE', 'SUSPICION', 'TEMPTATION'].includes(cardToPlay.cardId) && !victimPlayerId) {
+    if (['FLAMETHROWER', 'ANALYSIS', 'QUARANTINE', 'SUSPICION', 'TEMPTATION', 'CHANGE_SEATS', 'YOU_BETTER_RUN'].includes(cardToPlay.cardId) && !victimPlayerId) {
       return { success: false, error: `Для карты "${cardToPlay.name}" необходимо выбрать цель!` };
     }
 
@@ -386,6 +409,45 @@ export class GameEngine {
         }
       }
     }
+    else if (playedCard.cardId === 'CHANGE_SEATS' && victimPlayerId) {
+      const victim = room.players.find(p => p.id === victimPlayerId);
+      if (victim) {
+        const N = room.players.length;
+        const playerIndex = room.players.findIndex(p => p.id === targetPlayerId);
+        const victimIndex = room.players.findIndex(p => p.id === victimPlayerId);
+
+        if (victimIndex !== (playerIndex + 1) % N && victimIndex !== (playerIndex - 1 + N) % N) {
+          return { success: false, error: 'Карта "Меняемся местами!" может быть сыграна только на соседа!' };
+        }
+        if (victim.isInQuarantine) {
+          return { success: false, error: 'Нельзя поменяться местами с игроком в карантине!' };
+        }
+        if (this.isDoorBarredBetween(room, playerIndex, victimIndex)) {
+          return { success: false, error: 'Нельзя поменяться местами сквозь заколоченную дверь!' };
+        }
+
+        [room.players[playerIndex], room.players[victimIndex]] = [room.players[victimIndex], room.players[playerIndex]];
+        room.currentTurnIndex = victimIndex; // update pointer to original player
+
+        room.log.push(`🪑 ${player.name} поменялся местами с ${victim.name}!`);
+      }
+    }
+    else if (playedCard.cardId === 'YOU_BETTER_RUN' && victimPlayerId) {
+      const victim = room.players.find(p => p.id === victimPlayerId);
+      if (victim) {
+        const playerIndex = room.players.findIndex(p => p.id === targetPlayerId);
+        const victimIndex = room.players.findIndex(p => p.id === victimPlayerId);
+
+        if (victim.isInQuarantine) {
+          return { success: false, error: 'Нельзя поменяться местами с игроком в карантине!' };
+        }
+
+        [room.players[playerIndex], room.players[victimIndex]] = [room.players[victimIndex], room.players[playerIndex]];
+        room.currentTurnIndex = victimIndex; // update pointer to original player
+
+        room.log.push(`🪑 ${player.name} поменялся местами с ${victim.name}!`);
+      }
+    }
 
     const isGameOver = this.checkVictory(room);
     if (!isGameOver && !room.pendingTrade) {
@@ -409,6 +471,7 @@ export class GameEngine {
       if (cardIdx !== -1) {
         const [defCard] = victim.hand.splice(cardIdx, 1);
         room.discardPile.push(defCard);
+        this.drawReplacementCard(room, victim);
         room.log.push(`🛡️ ${victim.name} сыграл "${defCard.name}" и успешно увернулся от атаки!`);
       }
     } else {
@@ -445,6 +508,7 @@ export class GameEngine {
 
     const [noThanksCard] = receiver.hand.splice(cardIdx, 1);
     room.discardPile.push(noThanksCard);
+    this.drawReplacementCard(room, receiver);
 
     room.log.push(`🛡️ ${receiver.name} сыграл "Нет уж, спасибо!" и ОТМЕНИЛ ОБМЕН!`);
 
@@ -479,6 +543,7 @@ export class GameEngine {
     // Сбросить карту Страх
     const [fearCard] = receiver.hand.splice(cardIdx, 1);
     room.discardPile.push(fearCard);
+    this.drawReplacementCard(room, receiver);
 
     // Вернуть предложенную карту отправителю
     sender.hand.push(room.pendingTrade.offeredCard);
@@ -524,6 +589,7 @@ export class GameEngine {
     // Сбросить карту Мимо
     const [missCard] = receiver.hand.splice(cardIdx, 1);
     room.discardPile.push(missCard);
+    this.drawReplacementCard(room, receiver);
 
     if (nextPlayer.isInQuarantine || this.isDoorBarredBetween(room, receiverIndex, nextIndex)) {
       // Обмен сгорает
