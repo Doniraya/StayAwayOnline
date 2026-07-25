@@ -287,6 +287,16 @@ export class CardResolver {
       return { success: false, error: 'Игрок в карантине не может разыгрывать карты, только сбрасывать!' };
     }
 
+    const allowedActionCards = [
+      'FLAMETHROWER', 'ANALYSIS', 'WHISKEY', 'QUARANTINE', 'BARRED_DOOR',
+      'LOOK_AROUND', 'SUSPICION', 'TEMPTATION', 'AXE', 'CHANGE_SEATS',
+      'YOU_BETTER_RUN', 'PERSISTENCE'
+    ];
+
+    if (!allowedActionCards.includes(playedCard.cardId)) {
+      return { success: false, error: 'Эту карту нельзя разыграть как действие!' };
+    }
+
     if (['FLAMETHROWER', 'ANALYSIS', 'WHISKEY', 'SUSPICION'].includes(playedCard.cardId) && victimPlayerId) {
       const playerIndex = room.players.findIndex(p => p.id === targetPlayerId);
       const victimIndex = room.players.findIndex(p => p.id === victimPlayerId);
