@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { socket } from './socket';
-import type { GameState, Card } from './types/game';
+import type { GameState, Card, RevealEventData } from './types/game';
 import { motion } from 'framer-motion';
 import { Users, Bot, Play, ShieldAlert, Flame, Eye, FileText, Ban, Lock, Biohazard, X, Trophy, Skull, RotateCcw, Sparkles, Shield } from 'lucide-react';
 
@@ -24,12 +24,7 @@ export default function App() {
   const [doorIndex, setDoorIndex] = useState<number | null>(null);
   const [showLog, setShowLog] = useState(false);
 
-  const [revealData, setRevealData] = useState<{
-    type: 'ANALYSIS' | 'WHISKEY';
-    targetName?: string;
-    playerName?: string;
-    cards: Card[];
-  } | null>(null);
+  const [revealData, setRevealData] = useState<RevealEventData | null>(null);
 
   useEffect(() => {
     socket.on('game_state_updated', (state: GameState) => {
@@ -40,7 +35,7 @@ export default function App() {
       alert(`⚠️ Правила игры: ${message}`);
     });
 
-    socket.on('reveal_event', (data: any) => {
+    socket.on('reveal_event', (data: RevealEventData) => {
       setRevealData(data);
     });
 
