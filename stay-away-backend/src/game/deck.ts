@@ -51,7 +51,7 @@ const CARD_RULES: CardRule[] = [
     cardId: 'TEMPTATION',
     name: 'Соблазн',
     type: 'STAY_AWAY',
-    imageUrl: '/cards/no_thanks.png',
+    imageUrl: '/cards/temptation.png',
     description: 'Предложите обмен любому игроку.',
     quantities: { 4: 2, 5: 2, 6: 3, 7: 4, 8: 5, 9: 5, 10: 6, 11: 7, 12: 7 }
   },
@@ -59,7 +59,7 @@ const CARD_RULES: CardRule[] = [
     cardId: 'PERSISTENCE',
     name: 'Упорство',
     type: 'STAY_AWAY',
-    imageUrl: '/cards/no_thanks.png',
+    imageUrl: '/cards/persistence.png',
     description: 'Повторите попытку обмена.',
     quantities: { 4: 2, 5: 2, 6: 3, 7: 3, 8: 3, 9: 4, 10: 5, 11: 5, 12: 5 }
   },
@@ -67,7 +67,7 @@ const CARD_RULES: CardRule[] = [
     cardId: 'YOU_BETTER_RUN',
     name: 'Сматывай удочки!',
     type: 'STAY_AWAY',
-    imageUrl: '/cards/miss.png',
+    imageUrl: '/cards/you_better_run.png',
     description: 'Смените место с любым игроком.',
     quantities: { 4: 2, 5: 2, 6: 2, 7: 3, 8: 3, 9: 4, 10: 4, 11: 5, 12: 5 }
   },
@@ -247,6 +247,39 @@ const CARD_RULES: CardRule[] = [
   }
 ];
 
+const IMAGE_MAPPING: Partial<Record<CardId, string>> = {
+  THING: '/cards/thing.png',
+  FLAMETHROWER: '/cards/flamethrower.png',
+  ANALYSIS: '/cards/analysis.png',
+  AXE: '/cards/axe.png',
+  SUSPICION: '/cards/suspicion.png',
+  WHISKEY: '/cards/whiskey.png',
+  PERSISTENCE: '/cards/persistence.png',
+  TEMPTATION: '/cards/temptation.png',
+  CHANGE_SEATS: '/cards/change_seats.png',
+  YOU_BETTER_RUN: '/cards/you_better_run.png',
+  LOOK_AROUND: '/cards/panic_look_around.png',
+  NO_THANKS: '/cards/no_thanks.png',
+  FEAR: '/cards/fear.png',
+  MISS: '/cards/miss.png',
+  IM_FINE_HERE: '/cards/im_fine_here.png',
+  NO_BARBECUE: '/cards/no_barbecue.png',
+  BARRED_DOOR: '/cards/barred_door.png',
+  QUARANTINE: '/cards/quarantine.png',
+  PANIC_PARTY: '/cards/panic_party.png',
+  PANIC_GET_OUT: '/cards/panic_get_out.png',
+  PANIC_ONE_TWO: '/cards/panic_one_two.png',
+  PANIC_CHAIN_REACTION: '/cards/panic_chain_reaction.png',
+  PANIC_BLIND_DATE: '/cards/panic_blind_date.png',
+  PANIC_FRIENDS: '/cards/panic_friends.png',
+  PANIC_FORGETFULNESS: '/cards/panic_forgetfulness.png',
+  PANIC_BETWEEN_US: '/cards/panic_between_us.png',
+  PANIC_CONFESSION: '/cards/panic_confession.png',
+  PANIC_OOPS: '/cards/panic_oops.png',
+  PANIC_THREE_FOUR: '/cards/panic_three_four.png',
+  PANIC_OLD_ROPES: '/cards/panic_old_ropes.png',
+};
+
 export function generateDeck(playerCount: number): { deck: Card[]; thingCard: Card } {
   const validPlayerCount = Math.min(Math.max(playerCount, 4), 12);
   const deckCards: Card[] = [];
@@ -257,8 +290,8 @@ export function generateDeck(playerCount: number): { deck: Card[]; thingCard: Ca
     const count = rule.quantities[validPlayerCount] || 0;
     for (let i = 0; i < count; i++) {
       const imgUrl = rule.cardId === 'INFECTED' 
-        ? `/cards/infected_${(i % 8) + 1}.png` 
-        : rule.imageUrl;
+        ? `/cards/infected_${Math.floor(Math.random() * 8) + 1}.png`
+        : (IMAGE_MAPPING[rule.cardId] || rule.imageUrl);
 
       deckCards.push({
         id: uuidv4(),
