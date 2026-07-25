@@ -19,6 +19,47 @@ export class GameEngine {
   private botTimers: Map<string, NodeJS.Timeout> = new Map();
   private cardResolver = new CardResolver();
 
+  public replaceWithBot(roomId: string, requesterId: string, targetPlayerId: string): { success: boolean, error?: string } {
+    const room = this.rooms.get(roomId);
+    if (!room) return { success: false, error: 'Комната не найдена' };
+
+    const requester = room.players.find(p => p.id === requesterId);
+    if (!requester || !requester.isHost) return { success: false, error: 'Нет прав доступа' };
+
+    const targetPlayer = room.players.find(p => p.id === targetPlayerId);
+    if (!targetPlayer) return { success: false, error: 'Игрок не найден' };
+
+    if (!targetPlayer.isOnline) {
+      targetPlayer.isBot = true;
+      targetPlayer.isOnline = true;
+      room.log.push(`🤖 Хост заменил отключившегося ${targetPlayer.name} на Бота, чтобы продолжить игру!`);
+    }
+
+    return { success: true };
+  }
+
+  public handlePlayerDisconnect(roomId: string, playerId: string): boolean {
+    const room = this.rooms.get(roomId);
+    if (!room) return false;
+
+    const player = room.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    player.isOnline = false;
+    room.log.push(`🔌 Игрок ${player.name} потерял соединение!`);
+
+    if (player.isHost) {
+      player.isHost = false;
+      const newHost = room.players.find(p => !p.isBot && p.isOnline && p.isAlive);
+      if (newHost) {
+        newHost.isHost = true;
+        room.log.push(`👑 ${newHost.name} становится новым Хостом!`);
+      }
+    }
+
+    return true;
+  }
+
   // 1. Создание комнаты
   public createRoom(hostName: string): { roomId: string; hostId: string } {
     const roomId = randomBytes(3).toString('hex').toUpperCase();
@@ -32,7 +73,8 @@ export class GameEngine {
       hand: [],
       role: 'HUMAN',
       isAlive: true,
-      isInQuarantine: false
+      isInQuarantine: false,
+      isOnline: true
     };
 
     const newState: GameState = {
@@ -64,7 +106,8 @@ export class GameEngine {
       hand: [],
       role: 'HUMAN',
       isAlive: true,
-      isInQuarantine: false
+      isInQuarantine: false,
+      isOnline: true
     };
 
     room.players.push(newPlayer);
@@ -86,7 +129,8 @@ export class GameEngine {
       hand: [],
       role: 'HUMAN',
       isAlive: true,
-      isInQuarantine: false
+      isInQuarantine: false,
+      isOnline: true
     };
 
     room.players.push(botPlayer);
