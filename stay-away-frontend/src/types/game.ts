@@ -73,6 +73,7 @@ export type GamePhase =
   | 'RESPOND'
   | 'TRADE'
   | 'TRADE_ACCEPT'
+  | 'RESOLVE_PANIC'
   | 'GAME_OVER';
 
 export interface PendingTrade {
@@ -91,13 +92,15 @@ export interface GameState {
   discardPile: Card[];
   barredDoors: boolean[];
   pendingTrade?: PendingTrade;
+  pendingPanic?: Card;
   winnerRole?: 'HUMANS' | 'THING';
   log: string[];
 }
 
 export interface RevealEventData {
-  type: 'ANALYSIS' | 'WHISKEY';
+  type: 'ANALYSIS' | 'WHISKEY' | 'PANIC_BETWEEN_US' | 'CONFESSION';
   targetName?: string;
   playerName?: string;
-  cards: Card[];
+  cards?: Card[];
+  cardsMap?: Record<string, Card[]>;
 }

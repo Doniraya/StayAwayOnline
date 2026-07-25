@@ -167,6 +167,20 @@ export default function App() {
     });
   };
 
+  const handleResolvePanic = () => {
+    if (gameState && myPlayerId && activePlayerId && gameState.pendingPanic) {
+      socket.emit('resolve_panic', {
+        roomId: gameState.roomId,
+        requesterId: myPlayerId,
+        targetPlayerId: activePlayerId,
+        victimId: targetVictimId || undefined,
+        cardId: selectedCardId || undefined
+      });
+      setSelectedCardId(null);
+      setTargetVictimId(null);
+    }
+  };
+
   const selectedCard = activePlayer?.hand.find(c => c.id === selectedCardId);
 
   const isIllegalTradeCard = (card: Card) => {
@@ -360,24 +374,46 @@ export default function App() {
         </div>
       )}
 
-      {/* Всплывашка результатов (Анализ / Виски) */}
+      {/* Всплывашка результатов (Анализ / Виски / Паника) */}
       {revealData && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-slate-900 border-2 border-slate-700 p-6 rounded-2xl max-w-lg w-full shadow-2xl relative space-y-4">
+          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-slate-900 border-2 border-slate-700 p-6 rounded-2xl max-w-lg w-full shadow-2xl relative space-y-4 max-h-[90vh] flex flex-col">
             <button onClick={() => setRevealData(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white"><X className="w-6 h-6" /></button>
             <h3 className="text-xl font-bold text-amber-400 flex items-center gap-2">
-              {revealData.type === 'ANALYSIS' ? `🔍 Результат Анализа (Рука игрока ${revealData.targetName})` : `🥃 Виски (${revealData.playerName} показывает карты)`}
+              {revealData.type === 'ANALYSIS' && `🔍 Результат Анализа (Рука игрока ${revealData.targetName})`}
+              {revealData.type === 'WHISKEY' && `🥃 Виски (${revealData.playerName} показывает карты)`}
+              {revealData.type === 'PANIC_BETWEEN_US' && `🤫 Только между нами... Игрок ${revealData.targetName} показывает карты`}
+              {revealData.type === 'CONFESSION' && `Время признаний!`}
             </h3>
 
-            <div className="flex gap-3 overflow-x-auto p-2">
-              {revealData.cards.map((c, i) => (
-                <div key={i} className="w-28 h-40 rounded-lg overflow-hidden border border-slate-700 shrink-0 shadow-lg relative bg-slate-950">
-                  <img src={c.imageUrl || '/cards/back.png'} alt={c.name} className="w-full h-full object-cover" />
+            <div className="overflow-y-auto pr-2">
+              {revealData.type === 'CONFESSION' && revealData.cardsMap ? (
+                <div className="space-y-4">
+                  {Object.entries(revealData.cardsMap).map(([playerName, cards]) => (
+                    <div key={playerName} className="space-y-2">
+                      <h4 className="text-sm font-bold text-slate-300">{playerName}:</h4>
+                      <div className="flex gap-3 overflow-x-auto p-2">
+                        {cards.map((c, i) => (
+                          <div key={i} className="w-24 h-36 rounded-lg overflow-hidden border border-slate-700 shrink-0 shadow-lg relative bg-slate-950">
+                            <img src={c.imageUrl || '/cards/back.png'} alt={c.name} className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <div className="flex gap-3 overflow-x-auto p-2">
+                  {revealData.cards?.map((c, i) => (
+                    <div key={i} className="w-28 h-40 rounded-lg overflow-hidden border border-slate-700 shrink-0 shadow-lg relative bg-slate-950">
+                      <img src={c.imageUrl || '/cards/back.png'} alt={c.name} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <button onClick={() => setRevealData(null)} className="w-full bg-amber-500 hover:bg-amber-400 font-bold py-2 rounded-lg text-slate-950 transition">
+            <button onClick={() => setRevealData(null)} className="w-full bg-amber-500 hover:bg-amber-400 font-bold py-2 rounded-lg text-slate-950 transition mt-4 shrink-0">
               Понятно, закрыть
             </button>
           </motion.div>
@@ -519,6 +555,50 @@ export default function App() {
       {/* Панель управления */}
       <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col items-center space-y-4">
         
+        {/* Управление для фазы RESOLVE_PANIC */}
+        {gameState.phase === 'RESOLVE_PANIC' && isControlledTurn && gameState.pendingPanic && (
+          <div className="bg-slate-950 border border-red-800 p-4 rounded-xl flex flex-col items-center justify-center gap-4 shadow-lg shadow-red-900/20 w-full max-w-2xl">
+            <h3 className="text-xl font-black text-red-500 animate-pulse text-center">
+              🚨 ПАНИКА: Разыграйте карту "{gameState.pendingPanic.name}"
+            </h3>
+
+            <div className="flex flex-wrap items-center justify-center gap-4 w-full">
+              {gameState.pendingPanic.cardId === 'PANIC_BLIND_DATE' && (
+                <div className="text-sm text-amber-400 font-bold">
+                  Выберите карту из руки для сброса
+                </div>
+              )}
+
+              {['PANIC_GET_OUT', 'PANIC_FRIENDS', 'PANIC_ONE_TWO', 'PANIC_BETWEEN_US'].includes(gameState.pendingPanic.cardId) && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-amber-400 font-bold">Выберите жертву:</span>
+                  <select
+                    value={targetVictimId || ''}
+                    onChange={(e) => setTargetVictimId(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white"
+                  >
+                    <option value="">-- Выберите игрока --</option>
+                    {gameState.players.filter(p => p.id !== activePlayerId && p.isAlive).map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <button
+                onClick={handleResolvePanic}
+                disabled={
+                  (gameState.pendingPanic.cardId === 'PANIC_BLIND_DATE' && !selectedCardId) ||
+                  (['PANIC_GET_OUT', 'PANIC_FRIENDS', 'PANIC_ONE_TWO', 'PANIC_BETWEEN_US'].includes(gameState.pendingPanic.cardId) && !targetVictimId)
+                }
+                className="bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-2 rounded-lg transition shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Применить эффект Паники
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Выбор цели */}
         {gameState.phase === 'PLAY_OR_DISCARD' && isControlledTurn && selectedCard && (
           <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl flex flex-wrap items-center justify-center gap-4">
