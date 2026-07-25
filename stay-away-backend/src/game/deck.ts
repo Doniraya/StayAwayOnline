@@ -1,5 +1,6 @@
 import { Card, CardId } from '../types/game';
 import { v4 as uuidv4 } from 'uuid';
+import { randomInt } from 'crypto';
 
 interface CardRule {
   cardId: CardId;
@@ -271,7 +272,11 @@ export function generateDeck(playerCount: number): { deck: Card[]; thingCard: Ca
     }
   });
 
-  const shuffled = deckCards.sort(() => Math.random() - 0.5);
+  const shuffled = [...deckCards];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
 
   const thingCard: Card = {
     id: uuidv4(),
