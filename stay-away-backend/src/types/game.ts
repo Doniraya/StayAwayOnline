@@ -65,6 +65,7 @@ export interface Player {
   isAlive: boolean;
   isInQuarantine: boolean;
   quarantineTurnsLeft?: number;
+  isOnline: boolean;
 }
 
 export type GamePhase =

@@ -15,6 +15,8 @@ const io = new Server(server, {
   }
 });
 
+const socketMap = new Map<string, { roomId: string, playerId: string }>();
+
 function broadcastGameState(roomId: string) {
   const room = gameEngine.getRoom(roomId);
   if (!room) return;
@@ -35,6 +37,7 @@ io.on('connection', (socket) => {
     const { roomId, hostId } = gameEngine.createRoom(playerName);
     socket.join(roomId);
     socket.join(hostId);
+    socketMap.set(socket.id, { roomId, playerId: hostId });
     callback({ success: true, roomId, playerId: hostId });
     broadcastGameState(roomId);
   });
@@ -44,6 +47,7 @@ io.on('connection', (socket) => {
     if (!player) return callback({ success: false, message: 'Не удалось войти' });
     socket.join(roomId);
     socket.join(player.id);
+    socketMap.set(socket.id, { roomId, playerId: player.id });
     callback({ success: true, playerId: player.id });
     broadcastGameState(roomId);
   });
@@ -53,10 +57,31 @@ io.on('connection', (socket) => {
     if (room && room.players.some(p => p.id === playerId)) {
       socket.join(roomId);
       socket.join(playerId);
+      socketMap.set(socket.id, { roomId, playerId });
       callback({ success: true });
       broadcastGameState(roomId);
     } else {
       callback({ success: false });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    const info = socketMap.get(socket.id);
+    if (info) {
+      socketMap.delete(socket.id);
+      if (gameEngine.handlePlayerDisconnect(info.roomId, info.playerId)) {
+        broadcastGameState(info.roomId);
+      }
+    }
+  });
+
+  socket.on('replace_with_bot', ({ roomId, requesterId, targetPlayerId }) => {
+    const res = gameEngine.replaceWithBot(roomId, requesterId, targetPlayerId);
+    if (!res.success) {
+      socket.emit('game_error', { message: res.error });
+    } else {
+      broadcastGameState(roomId);
+      gameEngine.checkAndExecuteBotTurn(roomId, () => broadcastGameState(roomId));
     }
   });
 
