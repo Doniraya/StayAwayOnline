@@ -94,3 +94,10 @@ export interface GameState {
   winnerRole?: 'HUMANS' | 'THING';
   log: string[];
 }
+
+export interface RevealEventData {
+  type: 'ANALYSIS' | 'WHISKEY';
+  targetName?: string;
+  playerName?: string;
+  cards: Card[];
+}
