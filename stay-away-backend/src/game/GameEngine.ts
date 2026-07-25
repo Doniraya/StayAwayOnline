@@ -1023,6 +1023,10 @@ export class GameEngine {
       const victim = room.players.find(p => p.id === room.pendingDefense!.victimId);
       if (victim?.isBot && victim?.isAlive) actingBot = victim;
     }
+    else if (room.phase === 'RESOLVE_PANIC' && room.pendingPanic) {
+      const current = room.players[room.currentTurnIndex];
+      if (current?.isBot && current?.isAlive) actingBot = current;
+    }
 
     if (!actingBot) return;
 
@@ -1094,6 +1098,52 @@ export class GameEngine {
     else if (room.phase === 'RESPOND') {
       const defCard = bot.hand.find(c => c.cardId === 'MISS' || c.cardId === 'NO_BARBECUE');
       this.respondToAttack(room.roomId, requesterId, bot.id, defCard ? defCard.id : undefined);
+    }
+    else if (room.phase === 'RESOLVE_PANIC' && room.pendingPanic) {
+      const panicCard = room.pendingPanic;
+      if (panicCard.cardId === 'PANIC_BLIND_DATE') {
+        let legalCards = bot.hand.filter(c => c.cardId !== 'THING');
+        if (bot.role === 'INFECTED') {
+          const infectedCards = legalCards.filter(c => c.cardId === 'INFECTED');
+          if (infectedCards.length === 1) {
+            legalCards = legalCards.filter(c => c.cardId !== 'INFECTED');
+          } else if (infectedCards.length > 1) {
+            const firstInfectedId = infectedCards[0].id;
+            legalCards = legalCards.filter(c => c.id !== firstInfectedId);
+          }
+        }
+        if (legalCards.length === 0) legalCards = bot.hand.filter(c => c.cardId !== 'THING');
+
+        if (legalCards.length > 0) {
+          const chosenCard = legalCards[randomInt(legalCards.length)];
+          this.resolveTargetedPanic(room.roomId, requesterId, bot.id, undefined, chosenCard.id);
+        }
+      } else if (['PANIC_GET_OUT', 'PANIC_FRIENDS', 'PANIC_BETWEEN_US', 'PANIC_ONE_TWO'].includes(panicCard.cardId)) {
+        const N = room.players.length;
+        const playerIndex = room.players.findIndex(p => p.id === bot.id);
+
+        let validTargets = room.players.filter(p => p.isAlive && p.id !== bot.id);
+
+        if (panicCard.cardId === 'PANIC_BETWEEN_US') {
+          validTargets = validTargets.filter(p => {
+            const victimIndex = room.players.findIndex(rp => rp.id === p.id);
+            return victimIndex === (playerIndex + 1) % N || victimIndex === (playerIndex - 1 + N) % N;
+          });
+        } else if (panicCard.cardId === 'PANIC_ONE_TWO') {
+          validTargets = validTargets.filter(p => {
+            if (p.isInQuarantine || bot.isInQuarantine) return false;
+            const victimIndex = room.players.findIndex(rp => rp.id === p.id);
+            return victimIndex === (playerIndex + 3) % N || victimIndex === (playerIndex - 3 + N) % N;
+          });
+        } else if (panicCard.cardId === 'PANIC_GET_OUT' || panicCard.cardId === 'PANIC_FRIENDS') {
+          validTargets = validTargets.filter(p => !p.isInQuarantine);
+        }
+
+        if (validTargets.length > 0) {
+          const chosenVictim = validTargets[randomInt(validTargets.length)];
+          this.resolveTargetedPanic(room.roomId, requesterId, bot.id, chosenVictim.id);
+        }
+      }
     }
   }
 
