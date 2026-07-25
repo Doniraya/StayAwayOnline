@@ -38,6 +38,60 @@ export class GameEngine {
     return { success: true };
   }
 
+  public leaveRoom(roomId: string, playerId: string): boolean {
+    const room = this.rooms.get(roomId);
+    if (!room) return false;
+
+    const playerIndex = room.players.findIndex(p => p.id === playerId);
+    if (playerIndex === -1) return false;
+
+    const player = room.players[playerIndex];
+
+    if (room.phase === 'LOBBY') {
+      room.players.splice(playerIndex, 1);
+      room.log.push(`Игрок ${player.name} покинул комнату.`);
+
+      if (player.isHost) {
+        const newHost = room.players.find(p => !p.isBot && p.isOnline);
+        if (newHost) {
+          newHost.isHost = true;
+          room.log.push(`👑 ${newHost.name} становится новым Хостом!`);
+        } else {
+          // If no one is left to be host, we could destroy the room, but for now we just leave it.
+          // Actually, if the room is empty, we can just delete it.
+          if (room.players.length === 0) {
+            this.rooms.delete(roomId);
+          }
+        }
+      }
+      return true;
+    } else {
+      // In game, handle as disconnect
+      return this.handlePlayerDisconnect(roomId, playerId);
+    }
+  }
+
+  public kickPlayer(roomId: string, requesterId: string, targetPlayerId: string): { success: boolean, error?: string } {
+    const room = this.rooms.get(roomId);
+    if (!room) return { success: false, error: 'Комната не найдена' };
+
+    if (room.phase !== 'LOBBY') return { success: false, error: 'Исключать игроков можно только в Лобби' };
+
+    const requester = room.players.find(p => p.id === requesterId);
+    if (!requester || !requester.isHost) return { success: false, error: 'Только хост может исключать игроков' };
+
+    if (requesterId === targetPlayerId) return { success: false, error: 'Нельзя исключить самого себя' };
+
+    const targetIndex = room.players.findIndex(p => p.id === targetPlayerId);
+    if (targetIndex === -1) return { success: false, error: 'Игрок не найден' };
+
+    const target = room.players[targetIndex];
+    room.players.splice(targetIndex, 1);
+    room.log.push(`👢 Игрок ${target.name} был исключён из комнаты.`);
+
+    return { success: true };
+  }
+
   public handlePlayerDisconnect(roomId: string, playerId: string): boolean {
     const room = this.rooms.get(roomId);
     if (!room) return false;

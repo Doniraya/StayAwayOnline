@@ -54,14 +54,40 @@ io.on('connection', (socket) => {
 
   socket.on('reconnect_user', ({ roomId, playerId }, callback) => {
     const room = gameEngine.getRoom(roomId);
-    if (room && room.players.some(p => p.id === playerId)) {
-      socket.join(roomId);
-      socket.join(playerId);
-      socketMap.set(socket.id, { roomId, playerId });
-      callback({ success: true });
-      broadcastGameState(roomId);
+    if (room) {
+      const player = room.players.find(p => p.id === playerId);
+      if (player) {
+        player.isOnline = true;
+        socket.join(roomId);
+        socket.join(playerId);
+        socketMap.set(socket.id, { roomId, playerId });
+        callback({ success: true });
+        broadcastGameState(roomId);
+        return;
+      }
+    }
+    callback({ success: false });
+  });
+
+  socket.on('leave_room', ({ roomId, playerId }) => {
+    const info = socketMap.get(socket.id);
+    if (info && info.roomId === roomId && info.playerId === playerId) {
+      socketMap.delete(socket.id);
+      socket.leave(roomId);
+      socket.leave(playerId);
+      if (gameEngine.leaveRoom(roomId, playerId)) {
+        broadcastGameState(roomId);
+      }
+    }
+  });
+
+  socket.on('kick_player', ({ roomId, requesterId, targetPlayerId }) => {
+    const res = gameEngine.kickPlayer(roomId, requesterId, targetPlayerId);
+    if (!res.success) {
+      socket.emit('game_error', { message: res.error });
     } else {
-      callback({ success: false });
+      io.to(targetPlayerId).emit('kicked');
+      broadcastGameState(roomId);
     }
   });
 

@@ -49,10 +49,20 @@ export default function App() {
       setRevealData(data);
     });
 
+    socket.on('kicked', () => {
+      alert('Вас исключили из комнаты.');
+      localStorage.removeItem('stayAwaySession');
+      setGameState(null);
+      setMyPlayerId(null);
+      setControlledPlayerId(null);
+      setRoomCodeInput('');
+    });
+
     return () => {
       socket.off('game_state_updated');
       socket.off('game_error');
       socket.off('reveal_event');
+      socket.off('kicked');
     };
   }, []);
 
@@ -117,11 +127,20 @@ export default function App() {
   };
 
   const handleLeaveRoom = () => {
+    if (gameState && myPlayerId) {
+      socket.emit('leave_room', { roomId: gameState.roomId, playerId: myPlayerId });
+    }
     localStorage.removeItem('stayAwaySession');
     setGameState(null);
     setMyPlayerId(null);
     setControlledPlayerId(null);
     setRoomCodeInput('');
+  };
+
+  const handleKickPlayer = (targetPlayerId: string) => {
+    if (gameState && myPlayerId && isHost) {
+      socket.emit('kick_player', { roomId: gameState.roomId, requesterId: myPlayerId, targetPlayerId });
+    }
   };
 
   const handleDrawCard = () => {
@@ -239,16 +258,15 @@ export default function App() {
 
   if (gameState.phase === 'LOBBY') {
     return (
-      <div className="relative">
-        <button onClick={handleLeaveRoom} className="absolute top-4 left-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition">Выйти из комнаты</button>
-        <LobbyScreen
-          gameState={gameState}
-          myPlayerId={myPlayerId}
-          handleAddBot={handleAddBot}
-          handleStartGame={handleStartGame}
-          isHost={isHost}
-        />
-      </div>
+      <LobbyScreen
+        gameState={gameState}
+        myPlayerId={myPlayerId}
+        handleAddBot={handleAddBot}
+        handleStartGame={handleStartGame}
+        handleLeaveRoom={handleLeaveRoom}
+        handleKickPlayer={handleKickPlayer}
+        isHost={isHost}
+      />
     );
   }
 
