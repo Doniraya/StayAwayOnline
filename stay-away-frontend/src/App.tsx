@@ -13,14 +13,26 @@ const GithubIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
+const DECK_STATS: Record<number, { infected: number; panic: number; flamethrower: number; other: number }> = {
+  4: { infected: 8, panic: 4, flamethrower: 2, other: 16 },
+  5: { infected: 8, panic: 7, flamethrower: 2, other: 16 },
+  6: { infected: 10, panic: 8, flamethrower: 3, other: 24 },
+  7: { infected: 12, panic: 10, flamethrower: 3, other: 27 },
+  8: { infected: 13, panic: 11, flamethrower: 3, other: 30 },
+  9: { infected: 15, panic: 19, flamethrower: 4, other: 30 },
+  10: { infected: 17, panic: 20, flamethrower: 4, other: 33 },
+  11: { infected: 20, panic: 20, flamethrower: 5, other: 42 },
+  12: { infected: 20, panic: 20, flamethrower: 5, other: 42 }
+};
+
 const getDeckComposition = (playerCount: number) => {
-  const infectedCount = playerCount <= 6 ? "8-10" : playerCount <= 8 ? "12-14" : "16+";
+  const stats = DECK_STATS[playerCount] || DECK_STATS[4];
   return [
     { label: 'Нечто', count: 1, color: 'text-red-500', icon: '💀' },
-    { label: 'Заражение', count: infectedCount, color: 'text-emerald-400', icon: '🦠' },
-    { label: 'Огнемёт', count: '~3', color: 'text-amber-500', icon: '🔥' },
-    { label: 'Карты Паники', count: '~20', color: 'text-purple-400', icon: '😱' },
-    { label: 'Защита и Действия', count: 'Много', color: 'text-blue-400', icon: '🛡️' },
+    { label: 'Заражение', count: stats.infected, color: 'text-emerald-400', icon: '🦠' },
+    { label: 'Огнемёт', count: stats.flamethrower, color: 'text-amber-500', icon: '🔥' },
+    { label: 'Карты Паники', count: stats.panic, color: 'text-purple-400', icon: '😱' },
+    { label: 'Защита и Действия', count: stats.other, color: 'text-blue-400', icon: '🛡️' },
   ];
 };
 
@@ -435,22 +447,32 @@ export default function App() {
                   {Object.entries(revealData.cardsMap).map(([playerName, cards]) => (
                     <div key={playerName} className="space-y-2">
                       <h4 className="text-sm font-bold text-slate-300">{playerName}:</h4>
-                      <div className="flex gap-3 overflow-x-auto p-2">
+                      <div className="flex gap-3 overflow-x-auto p-2 pt-24 pb-6">
                         {cards.map((c, i) => (
-                          <div key={i} className="w-24 h-36 rounded-lg overflow-hidden border border-slate-700 shrink-0 shadow-lg relative bg-slate-950">
+                          <motion.div
+                            key={i}
+                            animate={{ zIndex: 0 }}
+                            whileHover={{ scale: 1.8, y: -40, zIndex: 50, transition: { delay: 0.4 } }}
+                            className="w-24 h-36 rounded-lg overflow-hidden border border-slate-700 shrink-0 shadow-lg relative bg-slate-950"
+                          >
                             <img src={c.imageUrl || '/cards/back.png'} alt={c.name} className="w-full h-full object-cover" />
-                          </div>
+                          </motion.div>
                         ))}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="flex gap-3 overflow-x-auto p-2">
+                <div className="flex gap-3 overflow-x-auto p-2 pt-24 pb-6">
                   {revealData.cards?.map((c, i) => (
-                    <div key={i} className="w-28 h-40 rounded-lg overflow-hidden border border-slate-700 shrink-0 shadow-lg relative bg-slate-950">
+                    <motion.div
+                      key={i}
+                      animate={{ zIndex: 0 }}
+                      whileHover={{ scale: 1.8, y: -40, zIndex: 50, transition: { delay: 0.4 } }}
+                      className="w-28 h-40 rounded-lg overflow-hidden border border-slate-700 shrink-0 shadow-lg relative bg-slate-950"
+                    >
                       <img src={c.imageUrl || '/cards/back.png'} alt={c.name} className="w-full h-full object-cover" />
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
@@ -558,6 +580,15 @@ export default function App() {
             </div>
           </div>
 
+          <motion.div
+            animate={{ rotate: (gameState.currentTurnIndex / gameState.players.length) * 360 - 90 }}
+            className="absolute top-1/2 left-1/2 w-64 h-64 -mt-32 -ml-32 rounded-full border-2 border-dashed border-amber-500/20 pointer-events-none flex justify-center"
+          >
+            <div className="absolute top-0 -mt-4 text-amber-500 animate-bounce drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]">
+              ▼
+            </div>
+          </motion.div>
+
           {/* Двери */}
           {gameState.players.map((_, i) => {
             if (!gameState.barredDoors[i]) return null;
@@ -567,7 +598,7 @@ export default function App() {
             const y = Math.sin(angle) * 180;
 
             return (
-              <div key={`door-${i}`} style={{ transform: `translate(${x}px, ${y}px)` }} className="absolute z-30 bg-amber-900 border-2 border-amber-500 text-amber-200 px-2 py-1 rounded-md text-[10px] font-extrabold flex items-center gap-1 shadow-2xl animate-pulse">
+              <div key={`door-${i}`} style={{ left: `calc(50% + ${x}px)`, top: `calc(50% + ${y}px)`, transform: 'translate(-50%, -50%)' }} className="absolute origin-center z-30 bg-amber-900 border-2 border-amber-500 text-amber-200 px-2 py-1 rounded-md text-[10px] font-extrabold flex items-center gap-1 shadow-2xl animate-pulse">
                 <Lock className="w-3 h-3 text-amber-400" /> ДВЕРЬ
               </div>
             );
@@ -586,11 +617,11 @@ export default function App() {
               <motion.div
                 key={player.id}
                 initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
+                animate={{ opacity: 1, scale: 1, x, y }}
                 whileHover={!isSelectedSeat && player.isAlive ? { scale: 1.05 } : {}}
                 onClick={() => isHost && handleSelectSeat(player.id)}
-                style={{ transform: `translate(${x}px, ${y}px)` }}
-                className={`absolute p-3 rounded-xl border flex flex-col items-center w-32 backdrop-blur shadow-lg cursor-pointer transition-all ${
+                style={{ left: `calc(50% - 64px)`, top: `calc(50% - 38px)` }}
+                className={`absolute origin-center p-3 rounded-xl border flex flex-col items-center w-32 backdrop-blur shadow-lg cursor-pointer transition-all ${
                   isSelectedSeat
                     ? 'ring-4 ring-amber-400 border-amber-500 scale-110 z-20 bg-slate-900'
                     : isCurrentTurn
@@ -755,7 +786,7 @@ export default function App() {
         )}
 
         {/* Рука кресла */}
-        <div className="flex gap-3 overflow-x-auto max-w-full p-2">
+        <div className="flex gap-3 overflow-x-auto max-w-full p-2 pt-24 pb-6">
           <AnimatePresence mode="popLayout">
           {activePlayer?.hand.map((card) => {
             const isSelected = card.id === selectedCardId;
@@ -765,9 +796,9 @@ export default function App() {
               <motion.div
                 key={card.id}
                 initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
+                animate={{ opacity: 1, y: 0, zIndex: card.id === selectedCardId ? 10 : 0 }}
                 exit={{ opacity: 0, scale: 0.5, y: -50 }}
-                whileHover={illegal ? {} : { scale: 1.05, y: -10 }}
+                whileHover={illegal ? {} : { scale: 1.8, y: -60, zIndex: 50, transition: { delay: 0.4, duration: 0.2 } }}
                 onClick={() => !illegal && setSelectedCardId(card.id)}
                 className={`w-32 h-48 rounded-xl overflow-hidden border-2 transition shadow-xl relative cursor-pointer bg-slate-950 ${
                   illegal ? 'opacity-40 grayscale cursor-not-allowed border-slate-800' : 'border-slate-700'
