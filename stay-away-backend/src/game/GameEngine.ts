@@ -258,20 +258,32 @@ export class GameEngine {
       return { success: false, error: 'Игрок в карантине не может разыгрывать карты, только сбрасывать!' };
     }
 
-    if (['FLAMETHROWER', 'ANALYSIS', 'WHISKEY'].includes(cardToPlay.cardId) && victimPlayerId) {
+    if (['FLAMETHROWER', 'ANALYSIS', 'WHISKEY', 'SUSPICION'].includes(cardToPlay.cardId) && victimPlayerId) {
       const playerIndex = room.players.findIndex(p => p.id === targetPlayerId);
       const victimIndex = room.players.findIndex(p => p.id === victimPlayerId);
+
+      if (cardToPlay.cardId === 'SUSPICION') {
+        const N = room.players.length;
+        if (victimIndex !== (playerIndex + 1) % N && victimIndex !== (playerIndex - 1 + N) % N) {
+          return { success: false, error: 'Карта "Подозрение" может быть сыграна только на соседа!' };
+        }
+      }
+
       if (this.isDoorBarredBetween(room, playerIndex, victimIndex)) {
         return { success: false, error: 'Нельзя сыграть карту сквозь Заколоченную Дверь!' };
       }
     }
 
-    if (['FLAMETHROWER', 'ANALYSIS', 'QUARANTINE'].includes(cardToPlay.cardId) && !victimPlayerId) {
+    if (['FLAMETHROWER', 'ANALYSIS', 'QUARANTINE', 'SUSPICION'].includes(cardToPlay.cardId) && !victimPlayerId) {
       return { success: false, error: `Для карты "${cardToPlay.name}" необходимо выбрать цель!` };
     }
 
     if (cardToPlay.cardId === 'BARRED_DOOR' && (doorIndex === undefined || doorIndex === null)) {
       return { success: false, error: 'Необходимо выбрать проход для заколочивания!' };
+    }
+
+    if (cardToPlay.cardId === 'AXE' && !victimPlayerId && (doorIndex === undefined || doorIndex === null)) {
+      return { success: false, error: `Для карты "${cardToPlay.name}" необходимо выбрать цель (игрока или дверь)!` };
     }
 
     const [playedCard] = player.hand.splice(cardIndex, 1);
@@ -334,6 +346,31 @@ export class GameEngine {
         : room.players[(playerIndex - 1 + N) % N];
 
       room.log.push(`🚪 ${player.name} заколотил дверь между собой и ${neighbor.name}!`);
+    }
+    else if (playedCard.cardId === 'LOOK_AROUND') {
+      room.direction = (room.direction * -1) as 1 | -1;
+      room.log.push(`🔄 ${player.name} сыграл "Гляди по сторонам"! Направление хода изменено.`);
+    }
+    else if (playedCard.cardId === 'SUSPICION' && victimPlayerId) {
+      const victim = room.players.find(p => p.id === victimPlayerId);
+      if (victim && victim.hand.length > 0) {
+        const randomVictimCard = victim.hand[randomInt(victim.hand.length)];
+        revealData = { type: 'SUSPICION', targetName: victim.name, card: randomVictimCard };
+        room.log.push(`👀 ${player.name} подозревает ${victim.name} и тайно смотрит одну его карту.`);
+      }
+    }
+    else if (playedCard.cardId === 'AXE') {
+      if (doorIndex !== undefined && doorIndex !== null) {
+        room.barredDoors[doorIndex] = false;
+        room.log.push(`🪓 ${player.name} разрубил Заколоченную Дверь Топором!`);
+      } else if (victimPlayerId) {
+        const victim = room.players.find(p => p.id === victimPlayerId);
+        if (victim && victim.isInQuarantine) {
+          victim.isInQuarantine = false;
+          victim.quarantineTurnsLeft = 0;
+          room.log.push(`🪓 ${player.name} освободил ${victim.name} из Карантина с помощью Топора!`);
+        }
+      }
     }
 
     const isGameOver = this.checkVictory(room);
