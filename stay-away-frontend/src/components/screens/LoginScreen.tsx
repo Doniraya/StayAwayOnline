@@ -1,0 +1,61 @@
+import { motion } from 'framer-motion';
+import { Flame, Users } from 'lucide-react';
+import { GITHUB_REPO_URL, GithubIcon } from '../Github';
+
+interface LoginScreenProps {
+  playerName: string;
+  setPlayerName: (name: string) => void;
+  roomCodeInput: string;
+  setRoomCodeInput: (code: string) => void;
+  handleCreateRoom: () => void;
+  handleJoinRoom: () => void;
+}
+
+export default function LoginScreen({
+  playerName,
+  setPlayerName,
+  roomCodeInput,
+  setRoomCodeInput,
+  handleCreateRoom,
+  handleJoinRoom,
+}: LoginScreenProps) {
+  return (
+    <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4 relative">
+      <a
+        href={GITHUB_REPO_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute top-6 right-6 text-slate-400 hover:text-white transition flex items-center gap-2 text-xs bg-slate-900 border border-slate-800 px-3.5 py-2 rounded-xl shadow-lg"
+        title="Репозиторий проекта на GitHub"
+      >
+        <GithubIcon className="w-4 h-4 text-white" />
+        <span className="font-semibold">GitHub</span>
+      </a>
+
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md w-full shadow-2xl space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-extrabold tracking-wider text-red-500 flex items-center justify-center gap-2">
+            <Flame className="w-8 h-8 animate-pulse" /> НЕЧТО
+          </h1>
+          <p className="text-slate-400 text-sm">Stay Away! — Настольная карточная онлайн игра</p>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Ваше Имя</label>
+            <input type="text" placeholder="Например: Алекс" value={playerName} onChange={(e) => setPlayerName(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-red-500 transition" />
+          </div>
+
+          <button onClick={handleCreateRoom} className="w-full bg-red-600 hover:bg-red-500 font-bold py-3 rounded-lg transition shadow-lg shadow-red-900/40 flex items-center justify-center gap-2">
+            <Users className="w-5 h-5" /> Создать Комнату
+          </button>
+
+          <div className="flex gap-2 pt-2">
+            <input type="text" placeholder="КОД КОМНАТЫ" value={roomCodeInput} onChange={(e) => setRoomCodeInput(e.target.value)} className="w-2/3 bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-slate-500 uppercase tracking-widest text-center" />
+            <button onClick={handleJoinRoom} className="w-1/3 bg-slate-800 hover:bg-slate-700 font-semibold py-3 rounded-lg transition">Войти</button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
