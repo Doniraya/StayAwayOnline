@@ -3,6 +3,8 @@ import { generateDeck } from './deck';
 import { v4 as uuidv4 } from 'uuid';
 import { randomInt, randomBytes } from 'crypto';
 
+const HIDDEN_DECK_CARD = { id: 'hidden', cardId: 'UNKNOWN' as any, name: '', type: 'STAY_AWAY' as const, minPlayers: 4, description: '' };
+
 function secureShuffleInPlace<T>(array: T[]): T[] {
   for (let i = array.length - 1; i > 0; i--) {
     const j = randomInt(i + 1);
@@ -636,7 +638,7 @@ export class GameEngine {
     return {
       ...room,
       players: sanitizedPlayers,
-      deck: room.deck.map(() => ({ id: 'hidden', cardId: 'UNKNOWN' as any, name: '', type: 'STAY_AWAY', minPlayers: 4, description: '' }))
+      deck: Array(room.deck.length).fill(HIDDEN_DECK_CARD)
     };
   }
 
