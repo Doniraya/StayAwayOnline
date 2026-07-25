@@ -1,55 +1,38 @@
-# Stay Away Online (Нечто) — Developer & Agent Guide
+# Stay Away Online - AI Agent Guidelines
 
-This repository contains the web adaptation of the official board game **"Stay Away!" ("Нечто из глубокой бездны")**.
-All game mechanics, logic, and card effects MUST strictly follow the official PDF board game rules.
+Welcome to the codebase of "Stay Away Online", a web-based adaptation of the multiplayer board game "Stay Away" (Нечто). 
 
----
+## 1. Tech Stack & Architecture
+- **Backend:** Node.js, Express, Socket.io, TypeScript.
+- **Frontend:** React, Vite, Tailwind, Framer Motion.
+- **State Management:** The game is driven by a strict State Machine located in `stay-away-backend/src/game/GameEngine.ts`.
+- **Communication:** WebSockets (Socket.io) broadcast the sanitized state (`getSanitizedState`) to clients. DO NOT leak hidden cards or roles to the global room log or state!
 
-## 🎲 Core Game Rules & Canonical Logic
+## 2. Core Game Rules (STRICT DOMAIN KNOWLEDGE)
+When writing game logic, strictly adhere to the official physical board game rules:
 
-### 1. Roles & Win Conditions
-- **HUMAN**: Initial role for all players except one. Goal: Identify and destroy The Thing with a Flamethrower.
-- **THING**: One player receives the `THING` card at the start. Goal: Infect or eliminate all Humans.
-- **INFECTED**: A Human who receives an `INFECTED` card from `THING` becomes `INFECTED`. Goal: Protect The Thing and defeat Humans.
-- **Victory**: 
-  - Humans win if `THING` is dead.
-  - Thing/Infected win if 0 Humans remain alive.
+### Roles & Infection Mechanics
+- **Roles:** `HUMAN`, `INFECTED`, `THING`.
+- **Infection Rule:** ONLY the `THING` can infect a `HUMAN` by passing the `INFECTED` card during a trade.
+- **INFECTED Constraint:** An `INFECTED` player CANNOT pass the `INFECTED` card to a `HUMAN`. They can only pass it back to the `THING`.
+- **HUMAN Constraint:** A `HUMAN` can NEVER pass an `INFECTED` card.
+- **Hand Size:** A player must ALWAYS have exactly 4 cards in their hand at the start and end of their turn.
 
-### 2. Card Trading & Infection Rules (CRITICAL)
-- **ONLY `THING` CAN INFECT HUMANS**: If `THING` passes an `INFECTED` card to a `HUMAN`, the Human's role changes to `INFECTED`.
-- **Infected Player Restrictions**: An `INFECTED` player can ONLY pass an `INFECTED` card to `THING`. They MUST NOT pass an `INFECTED` card to a `HUMAN`.
-- **Human Restrictions**: A `HUMAN` CANNOT pass an `INFECTED` card to anyone.
-- **Infected Card Retention**: An `INFECTED` player MUST keep at least one `INFECTED` card in their hand at all times and cannot discard/trade their last one.
-- **NO SPOILERS**: Infection state changes MUST BE SECRET. NEVER log infection role changes to public chat/game logs.
+### Turn Phases (`room.phase`)
+1. `DRAW`: Player draws 1 card from the deck. (If PANIC card is drawn, it is played immediately and discarded).
+2. `PLAY_OR_DISCARD`: Player must play 1 card (applying its effect) OR discard 1 card face down.
+3. `TRADE`: Player offers 1 card face down to the next player.
+4. `TRADE_ACCEPT`: The receiving player gives 1 card face down in return.
 
-### 3. Deck Building & Deal Rules
-- **Starting Hand Deal**: Each player receives 4 cards.
-- **STRICT RULE**: `INFECTED` cards and `PANIC` cards MUST NOT be present in initial starting hands.
-- Starting hands are dealt strictly from Stay Away event cards (excluding `INFECTED`).
-- Remaining Stay Away cards + `INFECTED` cards + `PANIC` cards are combined and shuffled AFTER initial dealing to form the main draw deck.
+### Obstacles (Must be checked during interactions)
+- **Quarantine (`QUARANTINE`):** Lasts for 3 turns. A quarantined player CANNOT trade cards, play action cards, or be targeted by most action cards.
+- **Barred Door (`BARRED_DOOR`):** Placed between two adjacent players. Prevents trading, changing seats, and Flamethrower attacks between them.
 
-### 4. Turn Structure & Hand Limits
-- Each player has a hand of **exactly 4 cards** at the start and end of their turn.
-- Turn phases:
-  1. `DRAW`: Draw 1 card from deck. (If Panic card is drawn, resolve/discard immediately).
-  2. `PLAY_OR_DISCARD`: Play 1 Event card or Discard 1 card.
-  3. `TRADE`: Offer 1 card to the adjacent player (by direction). The target responds (`TRADE_ACCEPT`) with 1 card or a Defense card (`NO_THANKS`).
-- **Defense Cards (`NO_THANKS`, `MISS`, `NO_BARBECUE`)**: Playing a defense card immediately discards it and draws a replacement card from the deck to maintain 4 cards in hand.
+## 3. Coding Conventions for Jules (AI Agent)
+- **TypeScript Strictness:** DO NOT use `any`. Always create or update interfaces in `types/game.ts`.
+- **Immutability:** When modifying arrays (like deck or hand), avoid mutating original state references directly if it causes side effects. Use spread operators where applicable.
+- **Randomness:** Use `crypto.randomInt` and Fisher-Yates for any deck shuffling or random player selection. DO NOT use `Math.random()`.
+- **Logs:** Update `room.log` with user-friendly Russian messages, but NEVER include secret information (like secret infections or hidden card names during trade).
 
-### 5. Obstacles
-- **Quarantine (`QUARANTINE`)**: Lasts for 3 turns. A player in Quarantine CANNOT trade cards, play event cards, or be targeted by actions (except special cards/panic). They draw cards face-down as normal.
-- **Barred Door (`BARRED_DOOR`)**: Blocks all direct actions, card trades, and seat swaps between adjacent neighbors separated by the door.
-
----
-
-## 🛠️ Technical Architecture & Coding Guidelines
-
-### Stack
-- **Backend**: Node.js, Express, Socket.io, TypeScript (`stay-away-backend/`).
-- **Frontend**: React 18, Vite, Tailwind CSS v4, TypeScript (`stay-away-frontend/`).
-
-### Code Standards
-1. **Cryptographic Randomness**: ALWAYS use `secureShuffleInPlace()` or `crypto.randomInt()` for shuffling decks and picking random elements. NEVER use `Math.random() - 0.5`.
-2. **Type Safety**: NO `any` types. Keep TypeScript strictly typed. Always update `src/types/game.ts` when adding new state properties.
-3. **State Sanitization**: Public states sent to clients MUST use `getSanitizedState()`. Players must only see their own hand and role (unless `GAME_OVER` or explicit card effects like `WHISKEY`/`ANALYSIS`).
-4. **Performance**: Avoid memory allocation overhead in frequent broadcast loops. Use `useMemo` for React render cycles where appropriate.
+## 4. Your Role
+Act as an expert Senior TypeScript Developer. Before writing logic for new cards or fixing bugs, consult the "Core Game Rules" section to ensure you do not break the board game's balance.
