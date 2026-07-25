@@ -80,6 +80,7 @@ export interface PendingTrade {
   fromPlayerId: string;
   toPlayerId: string;
   offeredCard?: Card;
+  isSeduction?: boolean;
 }
 
 export interface PendingDefense {

@@ -274,7 +274,7 @@ export class GameEngine {
       }
     }
 
-    if (['FLAMETHROWER', 'ANALYSIS', 'QUARANTINE', 'SUSPICION'].includes(cardToPlay.cardId) && !victimPlayerId) {
+    if (['FLAMETHROWER', 'ANALYSIS', 'QUARANTINE', 'SUSPICION', 'TEMPTATION'].includes(cardToPlay.cardId) && !victimPlayerId) {
       return { success: false, error: `Для карты "${cardToPlay.name}" необходимо выбрать цель!` };
     }
 
@@ -359,6 +359,20 @@ export class GameEngine {
         room.log.push(`👀 ${player.name} подозревает ${victim.name} и тайно смотрит одну его карту.`);
       }
     }
+    else if (playedCard.cardId === 'TEMPTATION' && victimPlayerId) {
+      const victim = room.players.find(p => p.id === victimPlayerId);
+      if (victim) {
+        if (victim.isInQuarantine) {
+          return { success: false, error: 'Игрок в Карантине не может участвовать в обмене!' };
+        }
+        room.phase = 'TRADE';
+        room.pendingTrade = { fromPlayerId: player.id, toPlayerId: victim.id, isSeduction: true };
+        room.log.push(`🍷 ${player.name} разыграл Соблазн и предлагает обмен игроку ${victim.name}!`);
+
+        const isGameOver = this.checkVictory(room);
+        return { success: true, revealData: null };
+      }
+    }
     else if (playedCard.cardId === 'AXE') {
       if (doorIndex !== undefined && doorIndex !== null) {
         room.barredDoors[doorIndex] = false;
@@ -374,7 +388,7 @@ export class GameEngine {
     }
 
     const isGameOver = this.checkVictory(room);
-    if (!isGameOver) {
+    if (!isGameOver && !room.pendingTrade) {
       this.prepareTradePhase(room);
     }
     
@@ -435,6 +449,94 @@ export class GameEngine {
     room.log.push(`🛡️ ${receiver.name} сыграл "Нет уж, спасибо!" и ОТМЕНИЛ ОБМЕН!`);
 
     this.nextTurn(room);
+    return { success: true };
+  }
+
+  // 11b. Отмена обмена ("Страх")
+  public cancelTradeWithFear(roomId: string, requesterId: string, targetPlayerId: string, cardId: string): { success: boolean; error?: string; revealData?: any } {
+    const room = this.rooms.get(roomId);
+    if (!room || room.phase !== 'TRADE_ACCEPT' || !room.pendingTrade) return { success: false, error: 'Не фаза ответа на обмен' };
+    if (!this.canControlPlayer(room, requesterId, targetPlayerId)) return { success: false, error: 'Нет прав доступа' };
+
+    const receiver = room.players.find(p => p.id === targetPlayerId);
+    if (!receiver) return { success: false, error: 'Игрок не найден' };
+
+    const cardIdx = receiver.hand.findIndex(c => c.id === cardId);
+    if (cardIdx === -1) return { success: false, error: 'Карта не найдена' };
+
+    const card = receiver.hand[cardIdx];
+    if (card.cardId !== 'FEAR') {
+      return { success: false, error: 'Только карта "Страх" может быть сыграна здесь!' };
+    }
+
+    if (!room.pendingTrade.offeredCard) {
+      return { success: false, error: 'Нет предложенной карты для просмотра' };
+    }
+
+    const sender = room.players.find(p => p.id === room.pendingTrade!.fromPlayerId);
+    if (!sender) return { success: false, error: 'Отправитель не найден' };
+
+    // Сбросить карту Страх
+    const [fearCard] = receiver.hand.splice(cardIdx, 1);
+    room.discardPile.push(fearCard);
+
+    // Вернуть предложенную карту отправителю
+    sender.hand.push(room.pendingTrade.offeredCard);
+
+    room.log.push(`😱 ${receiver.name} сыграл СТРАХ, посмотрел предложенную карту и отказался от обмена!`);
+
+    this.nextTurn(room);
+    return { success: true, revealData: { type: 'FEAR', card: room.pendingTrade.offeredCard } };
+  }
+
+  // 11c. Перенаправление обмена ("Мимо!")
+  public redirectTradeWithMiss(roomId: string, requesterId: string, targetPlayerId: string, cardId: string): { success: boolean; error?: string } {
+    const room = this.rooms.get(roomId);
+    if (!room || room.phase !== 'TRADE_ACCEPT' || !room.pendingTrade) return { success: false, error: 'Не фаза ответа на обмен' };
+    if (!this.canControlPlayer(room, requesterId, targetPlayerId)) return { success: false, error: 'Нет прав доступа' };
+
+    const receiver = room.players.find(p => p.id === targetPlayerId);
+    if (!receiver) return { success: false, error: 'Игрок не найден' };
+
+    const cardIdx = receiver.hand.findIndex(c => c.id === cardId);
+    if (cardIdx === -1) return { success: false, error: 'Карта не найдена' };
+
+    const card = receiver.hand[cardIdx];
+    if (card.cardId !== 'MISS') {
+      return { success: false, error: 'Только карта "Мимо!" может быть сыграна здесь!' };
+    }
+
+    if (!room.pendingTrade.offeredCard) {
+      return { success: false, error: 'Нет предложенной карты' };
+    }
+
+    const sender = room.players.find(p => p.id === room.pendingTrade!.fromPlayerId);
+    if (!sender) return { success: false, error: 'Отправитель не найден' };
+
+    const receiverIndex = room.players.findIndex(p => p.id === receiver.id);
+    let nextIndex = receiverIndex;
+    do {
+      nextIndex = (nextIndex + room.direction + room.players.length) % room.players.length;
+    } while (!room.players[nextIndex].isAlive);
+
+    const nextPlayer = room.players[nextIndex];
+
+    // Сбросить карту Мимо
+    const [missCard] = receiver.hand.splice(cardIdx, 1);
+    room.discardPile.push(missCard);
+
+    if (nextPlayer.isInQuarantine || this.isDoorBarredBetween(room, receiverIndex, nextIndex)) {
+      // Обмен сгорает
+      sender.hand.push(room.pendingTrade.offeredCard);
+      room.log.push(`💨 ${receiver.name} сыграл "Мимо!", но путь к ${nextPlayer.name} заблокирован! Обмен сгорает.`);
+      this.nextTurn(room);
+      return { success: true };
+    }
+
+    // Перенаправить обмен
+    room.pendingTrade.toPlayerId = nextPlayer.id;
+    room.log.push(`💨 ${receiver.name} сыграл "Мимо!" и перевел обмен на ${nextPlayer.name}!`);
+
     return { success: true };
   }
 
