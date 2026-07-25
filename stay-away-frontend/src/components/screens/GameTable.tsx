@@ -318,8 +318,8 @@ export default function GameTable({
       )}
 
       {/* 2D Стол */}
-      <div className="relative flex-1 flex items-center justify-center my-4">
-        <div className="w-[600px] h-[350px] bg-slate-900/90 border-4 border-slate-800 rounded-full flex items-center justify-center shadow-2xl relative">
+      <div className="relative flex-1 flex items-center justify-center my-4 px-2 md:px-8 w-full">
+        <div className="w-full max-w-[800px] aspect-[5/3] bg-slate-900/90 border-4 border-slate-800 rounded-full flex items-center justify-center shadow-2xl relative">
 
           <div className="flex gap-8 items-center">
             <div className="flex flex-col items-center group relative cursor-help">
@@ -374,11 +374,14 @@ export default function GameTable({
             if (!gameState.barredDoors[i]) return null;
             const N = gameState.players.length;
             const angle = ((i + 0.5) / N) * 2 * Math.PI - Math.PI / 2;
-            const x = Math.cos(angle) * 280;
-            const y = Math.sin(angle) * 180;
+
+            const radiusX = 42;
+            const radiusY = 42;
+            const xPercent = Math.cos(angle) * radiusX;
+            const yPercent = Math.sin(angle) * radiusY;
 
             return (
-              <div key={`door-${i}`} style={{ left: `calc(50% + ${x}px)`, top: `calc(50% + ${y}px)`, transform: 'translate(-50%, -50%)' }} className="absolute origin-center z-30 bg-amber-900 border-2 border-amber-500 text-amber-200 px-2 py-1 rounded-md text-[10px] font-extrabold flex items-center gap-1 shadow-2xl animate-pulse">
+              <div key={`door-${i}`} style={{ left: `calc(50% + ${xPercent}%)`, top: `calc(50% + ${yPercent}%)`, transform: 'translate(-50%, -50%)' }} className="absolute origin-center z-30 bg-amber-900 border-2 border-amber-500 text-amber-200 px-2 py-1 rounded-md text-[10px] font-extrabold flex items-center gap-1 shadow-2xl animate-pulse">
                 <Lock className="w-3 h-3 text-amber-400" /> ДВЕРЬ
               </div>
             );
@@ -387,8 +390,10 @@ export default function GameTable({
           {/* Игроки */}
           {gameState.players.map((player, index) => {
             const angle = (index / gameState.players.length) * 2 * Math.PI - Math.PI / 2;
-            const x = Math.cos(angle) * 280;
-            const y = Math.sin(angle) * 180;
+            const radiusX = 42;
+            const radiusY = 42;
+            const xPercent = Math.cos(angle) * radiusX;
+            const yPercent = Math.sin(angle) * radiusY;
 
             const isCurrentTurn = index === gameState.currentTurnIndex;
             const isSelectedSeat = player.id === activePlayerId;
@@ -397,10 +402,10 @@ export default function GameTable({
               <motion.div
                 key={player.id}
                 initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1, x, y }}
+                animate={{ opacity: 1, scale: 1 }}
                 whileHover={!isSelectedSeat && player.isAlive ? { scale: 1.05 } : {}}
                 onClick={() => isHost && handleSelectSeat(player.id)}
-                style={{ left: `calc(50% - 64px)`, top: `calc(50% - 38px)` }}
+                style={{ left: `calc(50% + ${xPercent}%)`, top: `calc(50% + ${yPercent}%)`, x: "-50%", y: "-50%" }}
                 className={`absolute origin-center p-3 rounded-xl border flex flex-col items-center w-32 backdrop-blur shadow-lg cursor-pointer transition-all ${
                   isSelectedSeat
                     ? 'ring-4 ring-amber-400 border-amber-500 scale-110 z-20 bg-slate-900'
@@ -518,26 +523,26 @@ export default function GameTable({
 
         {/* Кнопки фаз */}
         {isControlledTurn && (
-          <div className="flex gap-3">
+          <div className="flex flex-col md:flex-row gap-3 w-full">
             {gameState.phase === 'DRAW' && (
-              <button onClick={handleDrawCard} className="bg-emerald-600 hover:bg-emerald-500 font-bold px-6 py-2 rounded-lg transition shadow-lg">
+              <button onClick={handleDrawCard} className="w-full bg-emerald-600 hover:bg-emerald-500 font-bold px-6 py-2 rounded-lg transition shadow-lg">
                 Взять карту из колоды ({activePlayer?.name})
               </button>
             )}
 
             {gameState.phase === 'PLAY_OR_DISCARD' && selectedCardId && (
-              <div className="flex gap-2">
-                <button onClick={handlePlayCard} disabled={isPlayDisabled} className="bg-red-600 hover:bg-red-500 font-bold px-5 py-2 rounded-lg transition shadow-lg disabled:opacity-40 disabled:cursor-not-allowed">
+              <div className="flex flex-col md:flex-row gap-2 w-full">
+                <button onClick={handlePlayCard} disabled={isPlayDisabled} className="w-full bg-red-600 hover:bg-red-500 font-bold px-5 py-2 rounded-lg transition shadow-lg disabled:opacity-40 disabled:cursor-not-allowed">
                   🔥 Сыграть действие карты
                 </button>
-                <button onClick={handleDiscardCard} className="bg-amber-600 hover:bg-amber-500 font-bold px-5 py-2 rounded-lg transition shadow-lg">
+                <button onClick={handleDiscardCard} className="w-full bg-amber-600 hover:bg-amber-500 font-bold px-5 py-2 rounded-lg transition shadow-lg">
                   🗑️ Просто сбросить карту
                 </button>
               </div>
             )}
 
             {gameState.phase === 'TRADE' && selectedCardId && (
-              <button onClick={handleOfferTrade} className="bg-blue-600 hover:bg-blue-500 font-bold px-6 py-2 rounded-lg transition shadow-lg">
+              <button onClick={handleOfferTrade} className="w-full bg-blue-600 hover:bg-blue-500 font-bold px-6 py-2 rounded-lg transition shadow-lg">
                 Предложить эту карту на обмен
               </button>
             )}
@@ -546,18 +551,18 @@ export default function GameTable({
 
         {/* Ответ на обмен */}
         {gameState.phase === 'TRADE_ACCEPT' && gameState.pendingTrade?.toPlayerId === activePlayerId && (
-          <div className="flex flex-col items-center space-y-2">
+          <div className="flex flex-col items-center space-y-2 w-full">
             <span className="text-xs font-bold text-amber-400 animate-bounce">
               Вам предложили обмен! Выберите карту из руки ({activePlayer?.name}) и подтвердите:
             </span>
-            <div className="flex gap-2">
+            <div className="flex flex-col md:flex-row gap-2 w-full">
               {selectedCardId && (
-                <button onClick={handleAcceptTrade} className="bg-emerald-600 hover:bg-emerald-500 font-bold px-6 py-2 rounded-lg transition shadow-lg">
+                <button onClick={handleAcceptTrade} className="w-full bg-emerald-600 hover:bg-emerald-500 font-bold px-6 py-2 rounded-lg transition shadow-lg">
                   Подтвердить обмен карты
                 </button>
               )}
               {hasNoThanks && (
-                <button onClick={handleCancelTradeNoThanks} className="bg-amber-600 hover:bg-amber-500 font-bold px-5 py-2 rounded-lg transition shadow-lg flex items-center gap-1 text-slate-950">
+                <button onClick={handleCancelTradeNoThanks} className="w-full bg-amber-600 hover:bg-amber-500 font-bold px-5 py-2 rounded-lg transition shadow-lg flex items-center justify-center gap-1 text-slate-950">
                   <Shield className="w-4 h-4" /> Сыграть "Нет уж, спасибо!" (Отменить обмен)
                 </button>
               )}
@@ -580,7 +585,7 @@ export default function GameTable({
                 exit={{ opacity: 0, scale: 0.5, y: -50 }}
                 whileHover={illegal ? {} : { scale: 1.8, y: -60, zIndex: 50, transition: { delay: 0.4, duration: 0.2 } }}
                 onClick={() => !illegal && setSelectedCardId(card.id)}
-                className={`w-32 h-48 rounded-xl overflow-hidden border-2 transition shadow-xl relative cursor-pointer bg-slate-950 ${
+                className={`w-24 h-36 md:w-32 md:h-48 shrink-0 rounded-xl overflow-hidden border-2 transition shadow-xl relative cursor-pointer bg-slate-950 ${
                   illegal ? 'opacity-40 grayscale cursor-not-allowed border-slate-800' : 'border-slate-700'
                 } ${isSelected ? 'ring-4 ring-amber-400 scale-105 border-amber-400 z-10' : ''}`}
               >
