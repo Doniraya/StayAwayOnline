@@ -226,6 +226,13 @@ export class GameEngine {
     return { success: true };
   }
 
+  private isDoorBarredBetween(room: GameState, index1: number, index2: number): boolean {
+    const N = room.players.length;
+    if (index2 === (index1 + 1) % N) return room.barredDoors[index1];
+    if (index2 === (index1 - 1 + N) % N) return room.barredDoors[index2];
+    return false;
+  }
+
   // 9. Розыгрыш карты
   public playCard(
     roomId: string,
@@ -246,6 +253,18 @@ export class GameEngine {
     if (cardIndex === -1) return { success: false, error: 'Карта не найдена в руке' };
 
     const cardToPlay = player.hand[cardIndex];
+
+    if (player.isInQuarantine) {
+      return { success: false, error: 'Игрок в карантине не может разыгрывать карты, только сбрасывать!' };
+    }
+
+    if (['FLAMETHROWER', 'ANALYSIS', 'WHISKEY'].includes(cardToPlay.cardId) && victimPlayerId) {
+      const playerIndex = room.players.findIndex(p => p.id === targetPlayerId);
+      const victimIndex = room.players.findIndex(p => p.id === victimPlayerId);
+      if (this.isDoorBarredBetween(room, playerIndex, victimIndex)) {
+        return { success: false, error: 'Нельзя сыграть карту сквозь Заколоченную Дверь!' };
+      }
+    }
 
     if (['FLAMETHROWER', 'ANALYSIS', 'QUARANTINE'].includes(cardToPlay.cardId) && !victimPlayerId) {
       return { success: false, error: `Для карты "${cardToPlay.name}" необходимо выбрать цель!` };
@@ -295,6 +314,7 @@ export class GameEngine {
       const victim = room.players.find(p => p.id === victimPlayerId);
       if (victim) {
         victim.isInQuarantine = true;
+        victim.quarantineTurnsLeft = 3;
         room.log.push(`☣️ ${player.name} поместил игрока ${victim.name} в КАРАНТИН!`);
       }
     }
@@ -412,6 +432,14 @@ export class GameEngine {
       nextIndex = (nextIndex + room.direction + room.players.length) % room.players.length;
     } while (!room.players[nextIndex].isAlive);
 
+    const currentPlayer = room.players[room.currentTurnIndex];
+    const nextPlayer = room.players[nextIndex];
+
+    if (currentPlayer.isInQuarantine || nextPlayer.isInQuarantine || this.isDoorBarredBetween(room, room.currentTurnIndex, nextIndex)) {
+      this.nextTurn(room);
+      return;
+    }
+
     room.phase = 'TRADE';
     room.pendingTrade = {
       fromPlayerId: room.players[room.currentTurnIndex].id,
@@ -515,6 +543,16 @@ export class GameEngine {
     } while (!room.players[nextIndex].isAlive);
 
     room.currentTurnIndex = nextIndex;
+
+    const newCurrentPlayer = room.players[room.currentTurnIndex];
+    if (newCurrentPlayer.isInQuarantine) {
+      newCurrentPlayer.quarantineTurnsLeft = (newCurrentPlayer.quarantineTurnsLeft || 0) - 1;
+      if (newCurrentPlayer.quarantineTurnsLeft <= 0) {
+        newCurrentPlayer.isInQuarantine = false;
+        newCurrentPlayer.quarantineTurnsLeft = 0;
+      }
+    }
+
     room.phase = 'DRAW';
     room.log.push(`Ход переходит к: ${room.players[room.currentTurnIndex].name}`);
   }
