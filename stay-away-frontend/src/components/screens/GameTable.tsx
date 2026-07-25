@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Trophy, Skull, Sparkles, Bot, Users, Flame, Biohazard, RotateCcw,
@@ -39,6 +40,7 @@ interface GameTableProps {
   setShowLog: (show: boolean) => void;
   handleSelectSeat: (id: string) => void;
   handleRestartGame: () => void;
+  handleLeaveRoom: () => void;
   defenseCardsInHand: Card[];
   handleDefendAttack: (defenseCardId?: string) => void;
   currentTurnPlayer: Player | null;
@@ -73,6 +75,7 @@ export default function GameTable({
   setShowLog,
   handleSelectSeat,
   handleRestartGame,
+  handleLeaveRoom,
   defenseCardsInHand,
   handleDefendAttack,
   currentTurnPlayer,
@@ -96,6 +99,37 @@ export default function GameTable({
   handleCancelTradeNoThanks,
   isIllegalTradeCard
 }: GameTableProps) {
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+
+    // We will just use isControlledTurn for simplicity, it handles the logic from the prompt.
+    if (isControlledTurn) {
+      if (document.hidden) {
+        let toggle = false;
+        interval = setInterval(() => {
+          document.title = toggle ? "🔥 ТВОЙ ХОД! 🔥" : "Нечто";
+          toggle = !toggle;
+        }, 1000);
+        new Audio('/sounds/turn.mp3').play().catch(() => {});
+      }
+    }
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden && interval) {
+        clearInterval(interval);
+        interval = null;
+        document.title = "Stay Away!";
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      if (interval) clearInterval(interval);
+      document.title = "Stay Away!";
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isControlledTurn]);
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-4 overflow-hidden relative">
 
@@ -141,6 +175,9 @@ export default function GameTable({
                 <RotateCcw className="w-5 h-5" /> СЫГРАТЬ ЕЩЁ РАЗ
               </button>
             )}
+            <button onClick={handleLeaveRoom} className="w-full mt-2 bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
+              <RotateCcw className="w-5 h-5" /> ВЫЙТИ ИЗ КОМНАТЫ
+            </button>
           </motion.div>
         </div>
       )}

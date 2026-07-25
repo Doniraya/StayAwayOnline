@@ -48,6 +48,18 @@ io.on('connection', (socket) => {
     broadcastGameState(roomId);
   });
 
+  socket.on('reconnect_user', ({ roomId, playerId }, callback) => {
+    const room = gameEngine.getRoom(roomId);
+    if (room && room.players.some(p => p.id === playerId)) {
+      socket.join(roomId);
+      socket.join(playerId);
+      callback({ success: true });
+      broadcastGameState(roomId);
+    } else {
+      callback({ success: false });
+    }
+  });
+
   socket.on('add_bot', ({ roomId }) => {
     gameEngine.addBot(roomId);
     broadcastGameState(roomId);
