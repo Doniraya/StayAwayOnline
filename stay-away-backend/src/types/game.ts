@@ -81,6 +81,12 @@ export interface PendingTrade {
   offeredCard?: Card;
 }
 
+export interface PendingDefense {
+  attackerId: string;
+  victimId: string;
+  attackType: string;
+}
+
 export interface GameState {
   roomId: string;
   phase: GamePhase;
@@ -91,6 +97,7 @@ export interface GameState {
   discardPile: Card[];
   barredDoors: boolean[];
   pendingTrade?: PendingTrade;
+  pendingDefense?: PendingDefense;
   winnerRole?: 'HUMANS' | 'THING';
   log: string[];
 }
