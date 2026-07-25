@@ -1,6 +1,15 @@
 import { GameState, Player, Card, Role } from '../types/game';
 import { generateDeck } from './deck';
 import { v4 as uuidv4 } from 'uuid';
+import { randomInt, randomBytes } from 'crypto';
+
+function secureShuffleInPlace<T>(array: T[]): T[] {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
 
 export class GameEngine {
   private rooms: Map<string, GameState> = new Map();
@@ -8,7 +17,7 @@ export class GameEngine {
 
   // 1. Создание комнаты
   public createRoom(hostName: string): { roomId: string; hostId: string } {
-    const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const roomId = randomBytes(3).toString('hex').toUpperCase();
     const hostId = uuidv4();
 
     const hostPlayer: Player = {
@@ -93,9 +102,9 @@ export class GameEngine {
     const infectedCards = deck.filter(c => c.cardId === 'INFECTED');
     const panicCards = deck.filter(c => c.type === 'PANIC');
 
-    initialStayAwayCards.sort(() => Math.random() - 0.5);
+    secureShuffleInPlace(initialStayAwayCards);
 
-    const thingPlayerIndex = Math.floor(Math.random() * room.players.length);
+    const thingPlayerIndex = randomInt(room.players.length);
 
     // Раздаем по 4 карты
     room.players.forEach((player, index) => {
@@ -115,7 +124,8 @@ export class GameEngine {
     });
 
     // Собираем общую колоду из оставшихся карт + Инфекция + Паника
-    const mainDrawDeck = [...initialStayAwayCards, ...infectedCards, ...panicCards].sort(() => Math.random() - 0.5);
+    const mainDrawDeck = [...initialStayAwayCards, ...infectedCards, ...panicCards];
+    secureShuffleInPlace(mainDrawDeck);
 
     room.deck = mainDrawDeck;
     room.discardPile = [];
@@ -190,7 +200,8 @@ export class GameEngine {
     if (currentPlayer.id !== targetPlayerId) return { success: false, error: 'Не твой ход' };
 
     if (room.deck.length === 0) {
-      room.deck = [...room.discardPile].sort(() => Math.random() - 0.5);
+      room.deck = [...room.discardPile];
+      secureShuffleInPlace(room.deck);
       room.discardPile = [];
       room.log.push('Колода закончилась! Сброс перемешан.');
     }
@@ -550,7 +561,7 @@ export class GameEngine {
     else if (room.phase === 'PLAY_OR_DISCARD') {
       const safeDiscardCards = bot.hand.filter(c => c.cardId !== 'THING');
       if (safeDiscardCards.length > 0) {
-        const randomCard = safeDiscardCards[Math.floor(Math.random() * safeDiscardCards.length)];
+        const randomCard = safeDiscardCards[randomInt(safeDiscardCards.length)];
         this.discardCard(room.roomId, requesterId, bot.id, randomCard.id);
       }
     }
@@ -559,7 +570,8 @@ export class GameEngine {
 
       if (bot.role === 'THING') {
         const infectionCard = bot.hand.find(c => c.cardId === 'INFECTED');
-        if (infectionCard && Math.random() < 0.8) {
+        // 80% chance for thing to offer infection card
+        if (infectionCard && randomInt(100) < 80) {
           legalCards = [infectionCard];
         } else {
           legalCards = bot.hand.filter(c => c.cardId !== 'THING');
@@ -570,13 +582,14 @@ export class GameEngine {
 
       if (legalCards.length === 0) legalCards = bot.hand.filter(c => c.cardId !== 'THING');
       if (legalCards.length > 0) {
-        const tradeCard = legalCards[Math.floor(Math.random() * legalCards.length)];
+        const tradeCard = legalCards[randomInt(legalCards.length)];
         this.offerTrade(room.roomId, requesterId, bot.id, tradeCard.id);
       }
     }
     else if (room.phase === 'TRADE_ACCEPT') {
       const noThanksCard = bot.hand.find(c => c.cardId === 'NO_THANKS');
-      if (noThanksCard && Math.random() < 0.3) {
+      // 30% chance for bot to reject a trade with NO_THANKS
+      if (noThanksCard && randomInt(100) < 30) {
         this.cancelTradeWithNoThanks(room.roomId, requesterId, bot.id, noThanksCard.id);
         return;
       }
@@ -587,7 +600,7 @@ export class GameEngine {
 
       if (legalCards.length === 0) legalCards = bot.hand.filter(c => c.cardId !== 'THING');
       if (legalCards.length > 0) {
-        const responseCard = legalCards[Math.floor(Math.random() * legalCards.length)];
+        const responseCard = legalCards[randomInt(legalCards.length)];
         this.acceptTrade(room.roomId, requesterId, bot.id, responseCard.id);
       }
     }
