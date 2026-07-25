@@ -71,6 +71,7 @@ export type GamePhase =
   | 'LOBBY'
   | 'DRAW'
   | 'PLAY_OR_DISCARD'
+  | 'RESOLVE_PANIC'
   | 'RESPOND'
   | 'TRADE'
   | 'TRADE_ACCEPT'
@@ -100,6 +101,7 @@ export interface GameState {
   barredDoors: boolean[];
   pendingTrade?: PendingTrade;
   pendingDefense?: PendingDefense;
+  pendingPanic?: Card;
   winnerRole?: 'HUMANS' | 'THING';
   log: string[];
 }
