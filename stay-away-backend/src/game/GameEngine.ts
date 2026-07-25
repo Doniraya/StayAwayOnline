@@ -498,6 +498,160 @@ export class GameEngine {
     }
   }
 
+  private handleFlamethrower(room: GameState, player: Player, victimPlayerId?: string): { success: boolean; error?: string; revealData?: any; earlyReturn?: boolean } {
+    const victim = room.players.find(p => p.id === victimPlayerId);
+    if (victim) {
+      if (victim.isInQuarantine) {
+        return { success: false, error: 'Игрок в Карантине защищен от Огнемёта!' };
+      }
+
+      const hasDefense = victim.hand.some(c => c.cardId === 'MISS' || c.cardId === 'NO_BARBECUE');
+
+      if (hasDefense) {
+        room.phase = 'RESPOND';
+        room.pendingDefense = { attackerId: player.id, victimId: victim.id, attackType: 'FLAMETHROWER' };
+        room.log.push(`⚠️ ${player.name} целует Огнемётом в ${victim.name}! ${victim.name} решается разыграть карту Защиты...`);
+        return { success: true, earlyReturn: true };
+      }
+
+      victim.isAlive = false;
+      room.log.push(`🔥 ${player.name} сжёг игрока ${victim.name}!`);
+    }
+    return { success: true };
+  }
+
+  private handleAnalysis(room: GameState, player: Player, victimPlayerId?: string): { success: boolean; error?: string; revealData?: any; earlyReturn?: boolean } {
+    const target = room.players.find(p => p.id === victimPlayerId);
+    if (target) {
+      room.log.push(`🔍 ${player.name} применил АНАЛИЗ на игрока ${target.name}.`);
+      return { success: true, revealData: { type: 'ANALYSIS', targetName: target.name, cards: target.hand } };
+    }
+    return { success: true };
+  }
+
+  private handleWhiskey(room: GameState, player: Player): { success: boolean; error?: string; revealData?: any; earlyReturn?: boolean } {
+    room.log.push(`🥃 ${player.name} выпил ВИСКИ и показал свои карты всем!`);
+    return { success: true, revealData: { type: 'WHISKEY', playerName: player.name, cards: player.hand } };
+  }
+
+  private handleQuarantine(room: GameState, player: Player, victimPlayerId?: string): { success: boolean; error?: string; revealData?: any; earlyReturn?: boolean } {
+    const victim = room.players.find(p => p.id === victimPlayerId);
+    if (victim) {
+      victim.isInQuarantine = true;
+      victim.quarantineTurnsLeft = 3;
+      room.log.push(`☣️ ${player.name} поместил игрока ${victim.name} в КАРАНТИН!`);
+    }
+    return { success: true };
+  }
+
+  private handleBarredDoor(room: GameState, player: Player, targetPlayerId: string, doorIndex?: number): { success: boolean; error?: string; revealData?: any; earlyReturn?: boolean } {
+    if (doorIndex !== undefined) {
+      const N = room.players.length;
+      const playerIndex = room.players.findIndex(p => p.id === targetPlayerId);
+      const leftDoorIndex = playerIndex;
+      const rightDoorIndex = (playerIndex - 1 + N) % N;
+
+      if (doorIndex !== leftDoorIndex && doorIndex !== rightDoorIndex) {
+        return { success: false, error: 'Дверь можно заколотить только между собой и прямым соседом!' };
+      }
+
+      room.barredDoors[doorIndex] = true;
+      const neighbor = doorIndex === leftDoorIndex
+        ? room.players[(playerIndex + 1) % N]
+        : room.players[(playerIndex - 1 + N) % N];
+
+      room.log.push(`🚪 ${player.name} заколотил дверь между собой и ${neighbor.name}!`);
+    }
+    return { success: true };
+  }
+
+  private handleLookAround(room: GameState, player: Player): { success: boolean; error?: string; revealData?: any; earlyReturn?: boolean } {
+    room.direction = (room.direction * -1) as 1 | -1;
+    room.log.push(`🔄 ${player.name} сыграл "Гляди по сторонам"! Направление хода изменено.`);
+    return { success: true };
+  }
+
+  private handleSuspicion(room: GameState, player: Player, victimPlayerId?: string): { success: boolean; error?: string; revealData?: any; earlyReturn?: boolean } {
+    const victim = room.players.find(p => p.id === victimPlayerId);
+    if (victim && victim.hand.length > 0) {
+      const randomVictimCard = victim.hand[randomInt(victim.hand.length)];
+      room.log.push(`👀 ${player.name} подозревает ${victim.name} и тайно смотрит одну его карту.`);
+      return { success: true, revealData: { type: 'SUSPICION', targetName: victim.name, card: randomVictimCard } };
+    }
+    return { success: true };
+  }
+
+  private handleTemptation(room: GameState, player: Player, victimPlayerId?: string): { success: boolean; error?: string; revealData?: any; earlyReturn?: boolean } {
+    const victim = room.players.find(p => p.id === victimPlayerId);
+    if (victim) {
+      if (victim.isInQuarantine) {
+        return { success: false, error: 'Игрок в Карантине не может участвовать в обмене!' };
+      }
+      room.phase = 'TRADE';
+      room.pendingTrade = { fromPlayerId: player.id, toPlayerId: victim.id, isSeduction: true };
+      room.log.push(`🍷 ${player.name} разыграл Соблазн и предлагает обмен игроку ${victim.name}!`);
+    }
+    return { success: true, revealData: null };
+  }
+
+  private handleAxe(room: GameState, player: Player, victimPlayerId?: string, doorIndex?: number): { success: boolean; error?: string; revealData?: any; earlyReturn?: boolean } {
+    if (doorIndex !== undefined && doorIndex !== null) {
+      room.barredDoors[doorIndex] = false;
+      room.log.push(`🪓 ${player.name} разрубил Заколоченную Дверь Топором!`);
+    } else if (victimPlayerId) {
+      const victim = room.players.find(p => p.id === victimPlayerId);
+      if (victim && victim.isInQuarantine) {
+        victim.isInQuarantine = false;
+        victim.quarantineTurnsLeft = 0;
+        room.log.push(`🪓 ${player.name} освободил ${victim.name} из Карантина с помощью Топора!`);
+      }
+    }
+    return { success: true };
+  }
+
+  private handleChangeSeats(room: GameState, player: Player, targetPlayerId: string, victimPlayerId?: string): { success: boolean; error?: string; revealData?: any; earlyReturn?: boolean } {
+    const victim = room.players.find(p => p.id === victimPlayerId);
+    if (victim) {
+      const N = room.players.length;
+      const playerIndex = room.players.findIndex(p => p.id === targetPlayerId);
+      const victimIndex = room.players.findIndex(p => p.id === victimPlayerId);
+
+      if (victimIndex !== (playerIndex + 1) % N && victimIndex !== (playerIndex - 1 + N) % N) {
+        return { success: false, error: 'Карта "Меняемся местами!" может быть сыграна только на соседа!' };
+      }
+      if (victim.isInQuarantine) {
+        return { success: false, error: 'Нельзя поменяться местами с игроком в карантине!' };
+      }
+      if (this.isDoorBarredBetween(room, playerIndex, victimIndex)) {
+        return { success: false, error: 'Нельзя поменяться местами сквозь заколоченную дверь!' };
+      }
+
+      [room.players[playerIndex], room.players[victimIndex]] = [room.players[victimIndex], room.players[playerIndex]];
+      room.currentTurnIndex = victimIndex; // update pointer to original player
+
+      room.log.push(`🪑 ${player.name} поменялся местами с ${victim.name}!`);
+    }
+    return { success: true };
+  }
+
+  private handleYouBetterRun(room: GameState, player: Player, targetPlayerId: string, victimPlayerId?: string): { success: boolean; error?: string; revealData?: any; earlyReturn?: boolean } {
+    const victim = room.players.find(p => p.id === victimPlayerId);
+    if (victim) {
+      const playerIndex = room.players.findIndex(p => p.id === targetPlayerId);
+      const victimIndex = room.players.findIndex(p => p.id === victimPlayerId);
+
+      if (victim.isInQuarantine) {
+        return { success: false, error: 'Нельзя поменяться местами с игроком в карантине!' };
+      }
+
+      [room.players[playerIndex], room.players[victimIndex]] = [room.players[victimIndex], room.players[playerIndex]];
+      room.currentTurnIndex = victimIndex; // update pointer to original player
+
+      room.log.push(`🪑 ${player.name} поменялся местами с ${victim.name}!`);
+    }
+    return { success: true };
+  }
+
   // 9. Розыгрыш карты
   public playCard(
     roomId: string,
@@ -551,145 +705,59 @@ export class GameEngine {
       return { success: false, error: `Для карты "${cardToPlay.name}" необходимо выбрать цель (игрока или дверь)!` };
     }
 
-    const [playedCard] = player.hand.splice(cardIndex, 1);
+        const [playedCard] = player.hand.splice(cardIndex, 1);
     room.discardPile.push(playedCard);
 
     let revealData: any = null;
+    let effectResult: { success: boolean; error?: string; revealData?: any; earlyReturn?: boolean } = { success: true };
 
-    if (playedCard.cardId === 'FLAMETHROWER' && victimPlayerId) {
-      const victim = room.players.find(p => p.id === victimPlayerId);
-      if (victim) {
-        if (victim.isInQuarantine) {
-          return { success: false, error: 'Игрок в Карантине защищен от Огнемёта!' };
-        }
-
-        const hasDefense = victim.hand.some(c => c.cardId === 'MISS' || c.cardId === 'NO_BARBECUE');
-
-        if (hasDefense) {
-          room.phase = 'RESPOND';
-          room.pendingDefense = { attackerId: player.id, victimId: victim.id, attackType: 'FLAMETHROWER' };
-          room.log.push(`⚠️ ${player.name} целует Огнемётом в ${victim.name}! ${victim.name} решается разыграть карту Защиты...`);
-          return { success: true };
-        }
-
-        victim.isAlive = false;
-        room.log.push(`🔥 ${player.name} сжёг игрока ${victim.name}!`);
-      }
+    switch (playedCard.cardId) {
+      case 'FLAMETHROWER':
+        effectResult = this.handleFlamethrower(room, player, victimPlayerId);
+        break;
+      case 'ANALYSIS':
+        effectResult = this.handleAnalysis(room, player, victimPlayerId);
+        break;
+      case 'WHISKEY':
+        effectResult = this.handleWhiskey(room, player);
+        break;
+      case 'QUARANTINE':
+        effectResult = this.handleQuarantine(room, player, victimPlayerId);
+        break;
+      case 'BARRED_DOOR':
+        effectResult = this.handleBarredDoor(room, player, targetPlayerId, doorIndex);
+        break;
+      case 'LOOK_AROUND':
+        effectResult = this.handleLookAround(room, player);
+        break;
+      case 'SUSPICION':
+        effectResult = this.handleSuspicion(room, player, victimPlayerId);
+        break;
+      case 'TEMPTATION':
+        effectResult = this.handleTemptation(room, player, victimPlayerId);
+        break;
+      case 'AXE':
+        effectResult = this.handleAxe(room, player, victimPlayerId, doorIndex);
+        break;
+      case 'CHANGE_SEATS':
+        effectResult = this.handleChangeSeats(room, player, targetPlayerId, victimPlayerId);
+        break;
+      case 'YOU_BETTER_RUN':
+        effectResult = this.handleYouBetterRun(room, player, targetPlayerId, victimPlayerId);
+        break;
+      default:
+        break;
     }
-    else if (playedCard.cardId === 'ANALYSIS' && victimPlayerId) {
-      const target = room.players.find(p => p.id === victimPlayerId);
-      if (target) {
-        revealData = { type: 'ANALYSIS', targetName: target.name, cards: target.hand };
-        room.log.push(`🔍 ${player.name} применил АНАЛИЗ на игрока ${target.name}.`);
-      }
-    }
-    else if (playedCard.cardId === 'WHISKEY') {
-      revealData = { type: 'WHISKEY', playerName: player.name, cards: player.hand };
-      room.log.push(`🥃 ${player.name} выпил ВИСКИ и показал свои карты всем!`);
-    }
-    else if (playedCard.cardId === 'QUARANTINE' && victimPlayerId) {
-      const victim = room.players.find(p => p.id === victimPlayerId);
-      if (victim) {
-        victim.isInQuarantine = true;
-        victim.quarantineTurnsLeft = 3;
-        room.log.push(`☣️ ${player.name} поместил игрока ${victim.name} в КАРАНТИН!`);
-      }
-    }
-    else if (playedCard.cardId === 'BARRED_DOOR' && doorIndex !== undefined) {
-      const N = room.players.length;
-      const playerIndex = room.players.findIndex(p => p.id === targetPlayerId);
-      const leftDoorIndex = playerIndex;
-      const rightDoorIndex = (playerIndex - 1 + N) % N;
 
-      if (doorIndex !== leftDoorIndex && doorIndex !== rightDoorIndex) {
-        return { success: false, error: 'Дверь можно заколотить только между собой и прямым соседом!' };
-      }
-
-      room.barredDoors[doorIndex] = true;
-      const neighbor = doorIndex === leftDoorIndex 
-        ? room.players[(playerIndex + 1) % N] 
-        : room.players[(playerIndex - 1 + N) % N];
-
-      room.log.push(`🚪 ${player.name} заколотил дверь между собой и ${neighbor.name}!`);
+    if (!effectResult.success) {
+      return { success: false, error: effectResult.error };
     }
-    else if (playedCard.cardId === 'LOOK_AROUND') {
-      room.direction = (room.direction * -1) as 1 | -1;
-      room.log.push(`🔄 ${player.name} сыграл "Гляди по сторонам"! Направление хода изменено.`);
+
+    if (effectResult.earlyReturn) {
+      return { success: effectResult.success, revealData: effectResult.revealData };
     }
-    else if (playedCard.cardId === 'SUSPICION' && victimPlayerId) {
-      const victim = room.players.find(p => p.id === victimPlayerId);
-      if (victim && victim.hand.length > 0) {
-        const randomVictimCard = victim.hand[randomInt(victim.hand.length)];
-        revealData = { type: 'SUSPICION', targetName: victim.name, card: randomVictimCard };
-        room.log.push(`👀 ${player.name} подозревает ${victim.name} и тайно смотрит одну его карту.`);
-      }
-    }
-    else if (playedCard.cardId === 'TEMPTATION' && victimPlayerId) {
-      const victim = room.players.find(p => p.id === victimPlayerId);
-      if (victim) {
-        if (victim.isInQuarantine) {
-          return { success: false, error: 'Игрок в Карантине не может участвовать в обмене!' };
-        }
-        room.phase = 'TRADE';
-        room.pendingTrade = { fromPlayerId: player.id, toPlayerId: victim.id, isSeduction: true };
-        room.log.push(`🍷 ${player.name} разыграл Соблазн и предлагает обмен игроку ${victim.name}!`);
 
-        const isGameOver = this.checkVictory(room);
-        return { success: true, revealData: null };
-      }
-    }
-    else if (playedCard.cardId === 'AXE') {
-      if (doorIndex !== undefined && doorIndex !== null) {
-        room.barredDoors[doorIndex] = false;
-        room.log.push(`🪓 ${player.name} разрубил Заколоченную Дверь Топором!`);
-      } else if (victimPlayerId) {
-        const victim = room.players.find(p => p.id === victimPlayerId);
-        if (victim && victim.isInQuarantine) {
-          victim.isInQuarantine = false;
-          victim.quarantineTurnsLeft = 0;
-          room.log.push(`🪓 ${player.name} освободил ${victim.name} из Карантина с помощью Топора!`);
-        }
-      }
-    }
-    else if (playedCard.cardId === 'CHANGE_SEATS' && victimPlayerId) {
-      const victim = room.players.find(p => p.id === victimPlayerId);
-      if (victim) {
-        const N = room.players.length;
-        const playerIndex = room.players.findIndex(p => p.id === targetPlayerId);
-        const victimIndex = room.players.findIndex(p => p.id === victimPlayerId);
-
-        if (victimIndex !== (playerIndex + 1) % N && victimIndex !== (playerIndex - 1 + N) % N) {
-          return { success: false, error: 'Карта "Меняемся местами!" может быть сыграна только на соседа!' };
-        }
-        if (victim.isInQuarantine) {
-          return { success: false, error: 'Нельзя поменяться местами с игроком в карантине!' };
-        }
-        if (this.isDoorBarredBetween(room, playerIndex, victimIndex)) {
-          return { success: false, error: 'Нельзя поменяться местами сквозь заколоченную дверь!' };
-        }
-
-        [room.players[playerIndex], room.players[victimIndex]] = [room.players[victimIndex], room.players[playerIndex]];
-        room.currentTurnIndex = victimIndex; // update pointer to original player
-
-        room.log.push(`🪑 ${player.name} поменялся местами с ${victim.name}!`);
-      }
-    }
-    else if (playedCard.cardId === 'YOU_BETTER_RUN' && victimPlayerId) {
-      const victim = room.players.find(p => p.id === victimPlayerId);
-      if (victim) {
-        const playerIndex = room.players.findIndex(p => p.id === targetPlayerId);
-        const victimIndex = room.players.findIndex(p => p.id === victimPlayerId);
-
-        if (victim.isInQuarantine) {
-          return { success: false, error: 'Нельзя поменяться местами с игроком в карантине!' };
-        }
-
-        [room.players[playerIndex], room.players[victimIndex]] = [room.players[victimIndex], room.players[playerIndex]];
-        room.currentTurnIndex = victimIndex; // update pointer to original player
-
-        room.log.push(`🪑 ${player.name} поменялся местами с ${victim.name}!`);
-      }
-    }
+    revealData = effectResult.revealData || null;
 
     const isGameOver = this.checkVictory(room);
     if (!isGameOver && !room.pendingTrade) {
