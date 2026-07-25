@@ -64,6 +64,7 @@ export interface Player {
   role: Role;
   isAlive: boolean;
   isInQuarantine: boolean;
+  quarantineTurnsLeft?: number;
 }
 
 export type GamePhase =
