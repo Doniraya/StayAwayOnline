@@ -263,8 +263,8 @@ export class ObstaclesLayer extends Container {
 
     const centerX = this.screenWidth / 2;
     const centerY = this.screenHeight / 2;
-    const radiusX = Math.min(this.screenWidth, this.screenHeight) * 0.40;
-    const radiusY = Math.min(this.screenWidth, this.screenHeight) * 0.30;
+    const radiusX = Math.min(this.screenWidth, this.screenHeight) * 0.45;
+    const radiusY = Math.min(this.screenWidth, this.screenHeight) * 0.35;
 
     const angle = (index / total) * Math.PI * 2 + Math.PI / 2;
     return {

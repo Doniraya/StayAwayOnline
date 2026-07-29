@@ -83,9 +83,8 @@ export function usePixiApp(containerRef: React.RefObject<HTMLDivElement | null>)
         // Первоначальное обновление колод
         if (initialGameState) {
           const deckLen = initialGameState.deck?.length || 0;
-          const panicLen = initialGameState.deck?.filter((c) => c.type === 'PANIC').length || 0;
           const discardLen = initialGameState.discardPile?.length || 0;
-          decksLayer.updateDecks(deckLen, panicLen, discardLen, initialPlayers.length);
+          decksLayer.updateDecks(deckLen, discardLen);
         }
 
         // Сохраняем начальное состояние игроков для отслеживания изменений
@@ -98,9 +97,8 @@ export function usePixiApp(containerRef: React.RefObject<HTMLDivElement | null>)
             
             if (decksLayerRef.current) {
               const deckLen = state.gameState.deck?.length || 0;
-              const panicLen = state.gameState.deck?.filter((c) => c.type === 'PANIC').length || 0;
               const discardLen = state.gameState.discardPile?.length || 0;
-              decksLayerRef.current.updateDecks(deckLen, panicLen, discardLen, state.gameState.players.length);
+              decksLayerRef.current.updateDecks(deckLen, discardLen);
             }
 
             if (playerTokensLayerRef.current) {

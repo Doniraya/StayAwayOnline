@@ -287,8 +287,8 @@ export class PlayerTokensLayer extends Container {
 
     const centerX = this.screenWidth / 2;
     const centerY = this.screenHeight / 2;
-    const radiusX = Math.min(this.screenWidth, this.screenHeight) * 0.40;
-    const radiusY = Math.min(this.screenWidth, this.screenHeight) * 0.30;
+    const radiusX = Math.min(this.screenWidth, this.screenHeight) * 0.45;
+    const radiusY = Math.min(this.screenWidth, this.screenHeight) * 0.35;
 
     this.players.forEach((player, index) => {
       const node = this.tokenNodesMap.get(player.id);

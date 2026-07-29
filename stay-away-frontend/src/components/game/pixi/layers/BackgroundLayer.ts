@@ -30,8 +30,8 @@ export class BackgroundLayer extends Container {
   public resize(w: number, h: number): void {
     const centerX = w / 2;
     const centerY = h / 2;
-    const radiusX = Math.min(w, h) * 0.42;
-    const radiusY = Math.min(w, h) * 0.32;
+    const radiusX = Math.min(w, h) * 0.48;
+    const radiusY = Math.min(w, h) * 0.38;
 
     // 1. Тень под столом
     this.shadowGraphic.clear();
