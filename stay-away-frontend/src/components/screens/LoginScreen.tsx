@@ -1,24 +1,16 @@
 import { motion } from 'framer-motion';
 import { Flame, Users } from 'lucide-react';
 import { GITHUB_REPO_URL, GithubIcon } from '../Github';
+import { useGameStore } from '../../store/useGameStore';
 
-interface LoginScreenProps {
-  playerName: string;
-  setPlayerName: (name: string) => void;
-  roomCodeInput: string;
-  setRoomCodeInput: (code: string) => void;
-  handleCreateRoom: () => void;
-  handleJoinRoom: () => void;
-}
+export default function LoginScreen() {
+  const playerName = useGameStore((s) => s.playerName);
+  const setPlayerName = useGameStore((s) => s.setPlayerName);
+  const roomCodeInput = useGameStore((s) => s.roomCodeInput);
+  const setRoomCodeInput = useGameStore((s) => s.setRoomCodeInput);
+  const handleCreateRoom = useGameStore((s) => s.handleCreateRoom);
+  const handleJoinRoom = useGameStore((s) => s.handleJoinRoom);
 
-export default function LoginScreen({
-  playerName,
-  setPlayerName,
-  roomCodeInput,
-  setRoomCodeInput,
-  handleCreateRoom,
-  handleJoinRoom,
-}: LoginScreenProps) {
   return (
     <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4 relative">
       <a
@@ -40,21 +32,21 @@ export default function LoginScreen({
           <p className="text-slate-400 text-sm">Stay Away! — Настольная карточная онлайн игра</p>
         </div>
 
-        <div className="space-y-4">
+        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (roomCodeInput.trim()) { handleJoinRoom(); } else { handleCreateRoom(); } }}>
           <div>
             <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Ваше Имя</label>
             <input type="text" placeholder="Например: Алекс" value={playerName} onChange={(e) => setPlayerName(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-red-500 transition" />
           </div>
 
-          <button onClick={handleCreateRoom} className="w-full bg-red-600 hover:bg-red-500 font-bold py-3 rounded-lg transition shadow-lg shadow-red-900/40 flex items-center justify-center gap-2">
+          <button type="button" onClick={handleCreateRoom} className="w-full bg-red-600 hover:bg-red-500 font-bold py-3 rounded-lg transition shadow-lg shadow-red-900/40 flex items-center justify-center gap-2">
             <Users className="w-5 h-5" /> Создать Комнату
           </button>
 
           <div className="flex gap-2 pt-2">
             <input type="text" placeholder="КОД КОМНАТЫ" value={roomCodeInput} onChange={(e) => setRoomCodeInput(e.target.value)} className="w-2/3 bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-slate-500 uppercase tracking-widest text-center" />
-            <button onClick={handleJoinRoom} className="w-1/3 bg-slate-800 hover:bg-slate-700 font-semibold py-3 rounded-lg transition">Войти</button>
+            <button type="submit" className="w-1/3 bg-slate-800 hover:bg-slate-700 font-semibold py-3 rounded-lg transition">Войти</button>
           </div>
-        </div>
+        </form>
       </motion.div>
     </div>
   );
