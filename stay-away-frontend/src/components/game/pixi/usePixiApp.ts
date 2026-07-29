@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Application, Ticker } from 'pixi.js';
 import { BackgroundLayer } from './layers/BackgroundLayer';
+import { DecksLayer } from './layers/DecksLayer';
 import { PlayerTokensLayer } from './layers/PlayerTokensLayer';
 import { ObstaclesLayer } from './layers/ObstaclesLayer';
 import { ParticlesLayer } from './layers/ParticlesLayer';
@@ -9,13 +10,13 @@ import type { Player } from '../../../types/game';
 
 /**
  * Хук жизненного цикла приложения Pixi.js (v8).
- * Инициализирует Application, создает слои (BackgroundLayer, PlayerTokensLayer, ObstaclesLayer, ParticlesLayer)
+ * Инициализирует Application, создает слои (BackgroundLayer, DecksLayer, PlayerTokensLayer, ObstaclesLayer, ParticlesLayer)
  * и монтирует canvas в DOM.
- * Настраивает подписку на Zustand store, Pixi Ticker, обработчики адаптивного ресайза и экспортирует триггеры частиц.
  */
 export function usePixiApp(containerRef: React.RefObject<HTMLDivElement | null>) {
   const appRef = useRef<Application | null>(null);
   const backgroundLayerRef = useRef<BackgroundLayer | null>(null);
+  const decksLayerRef = useRef<DecksLayer | null>(null);
   const playerTokensLayerRef = useRef<PlayerTokensLayer | null>(null);
   const obstaclesLayerRef = useRef<ObstaclesLayer | null>(null);
   const particlesLayerRef = useRef<ParticlesLayer | null>(null);
@@ -42,7 +43,12 @@ export function usePixiApp(containerRef: React.RefObject<HTMLDivElement | null>)
         backgroundLayerRef.current = backgroundLayer;
         app.stage.addChild(backgroundLayer);
 
-        // 2. Инициализация и монтирование PlayerTokensLayer
+        // 2. Инициализация и монтирование DecksLayer (Колоды карт и сброса)
+        const decksLayer = new DecksLayer(app.screen.width, app.screen.height);
+        decksLayerRef.current = decksLayer;
+        app.stage.addChild(decksLayer);
+
+        // 3. Инициализация и монтирование PlayerTokensLayer
         const initialGameState = useGameStore.getState().gameState;
         const initialPlayers = initialGameState?.players || [];
         const initialTurnId = initialGameState ? (initialGameState.players[initialGameState.currentTurnIndex]?.id || '') : '';
@@ -56,7 +62,7 @@ export function usePixiApp(containerRef: React.RefObject<HTMLDivElement | null>)
         playerTokensLayerRef.current = playerTokensLayer;
         app.stage.addChild(playerTokensLayer);
 
-        // 3. Инициализация и монтирование ObstaclesLayer (выше PlayerTokensLayer)
+        // 4. Инициализация и монтирование ObstaclesLayer (выше PlayerTokensLayer)
         const initialDoors = initialGameState?.barredDoors || [];
         const initialQuarantinedIds = initialPlayers.filter((p) => p.isInQuarantine).map((p) => p.id);
 
@@ -69,19 +75,34 @@ export function usePixiApp(containerRef: React.RefObject<HTMLDivElement | null>)
         obstaclesLayerRef.current = obstaclesLayer;
         app.stage.addChild(obstaclesLayer);
 
-        // 4. Инициализация и монтирование ParticlesLayer на самый верхний слой
+        // 5. Инициализация и монтирование ParticlesLayer на самый верхний слой
         const particlesLayer = new ParticlesLayer(app.screen.width, app.screen.height);
         particlesLayerRef.current = particlesLayer;
         app.stage.addChild(particlesLayer);
 
-        // Сохраняем начальное состояние игроков для отслеживания изменений (выбывание, заражение)
+        // Первоначальное обновление колод
+        if (initialGameState) {
+          const deckLen = initialGameState.deck?.length || 0;
+          const panicLen = initialGameState.deck?.filter((c) => c.type === 'PANIC').length || 0;
+          const discardLen = initialGameState.discardPile?.length || 0;
+          decksLayer.updateDecks(deckLen, panicLen, discardLen, initialPlayers.length);
+        }
+
+        // Сохраняем начальное состояние игроков для отслеживания изменений
         initialPlayers.forEach((p) => prevPlayersMap.set(p.id, { ...p }));
 
-        // Подписка на обновление состояния игроков, дверей, карантина и триггеров событий из Zustand store
+        // Подписка на обновление состояния игроков, колод, дверей, карантина
         unsubscribeStore = useGameStore.subscribe((state) => {
           if (state.gameState) {
             const activeId = state.gameState.players[state.gameState.currentTurnIndex]?.id || '';
             
+            if (decksLayerRef.current) {
+              const deckLen = state.gameState.deck?.length || 0;
+              const panicLen = state.gameState.deck?.filter((c) => c.type === 'PANIC').length || 0;
+              const discardLen = state.gameState.discardPile?.length || 0;
+              decksLayerRef.current.updateDecks(deckLen, panicLen, discardLen, state.gameState.players.length);
+            }
+
             if (playerTokensLayerRef.current) {
               playerTokensLayerRef.current.updatePlayers(
                 state.gameState.players,
@@ -101,18 +122,16 @@ export function usePixiApp(containerRef: React.RefObject<HTMLDivElement | null>)
               );
             }
 
-            // Проверка событий выбывания игрока или заражения для запуска анимаций ParticlesLayer
+            // Проверка событий выбывания игрока или заражения
             state.gameState.players.forEach((currPlayer) => {
               const prevPlayer = prevPlayersMap.get(currPlayer.id);
               if (prevPlayer) {
-                // Если игрок выбыл (был огнемётом), спавним эффект огнемёта от активного игрока к жертве
                 if (prevPlayer.isAlive && !currPlayer.isAlive) {
                   const srcPos = playerTokensLayerRef.current?.getPlayerPosition(activeId) || { x: app.screen.width / 2, y: app.screen.height / 2 };
                   const tgtPos = playerTokensLayerRef.current?.getPlayerPosition(currPlayer.id) || { x: app.screen.width / 2, y: app.screen.height / 2 };
                   particlesLayerRef.current?.spawnFlamethrower(srcPos.x, srcPos.y, tgtPos.x, tgtPos.y);
                 }
 
-                // Если у игрока появился статус заражения / сменилась роль на INFECTED
                 if (prevPlayer.role !== 'INFECTED' && currPlayer.role === 'INFECTED') {
                   const tgtPos = playerTokensLayerRef.current?.getPlayerPosition(currPlayer.id);
                   if (tgtPos) {
@@ -125,7 +144,7 @@ export function usePixiApp(containerRef: React.RefObject<HTMLDivElement | null>)
           }
         });
 
-        // 5. Обновление слоёв на каждом кадре Pixi Ticker
+        // 6. Обновление слоёв на каждом кадре Pixi Ticker
         const tickerCallback = (ticker: Ticker) => {
           backgroundLayer.updateOnTicker(ticker.deltaTime);
           playerTokensLayer.updateOnTicker(ticker.deltaTime);
@@ -134,11 +153,12 @@ export function usePixiApp(containerRef: React.RefObject<HTMLDivElement | null>)
         };
         app.ticker.add(tickerCallback);
 
-        // 6. Обработка адаптивного пересчёта орбит, стола, преград и частиц при изменении размеров
+        // 7. Обработка адаптивного пересчёта при ресайзе
         const handleResize = () => {
           if (appRef.current) {
             const { width, height } = appRef.current.screen;
             backgroundLayerRef.current?.resize(width, height);
+            decksLayerRef.current?.resize(width, height);
             playerTokensLayerRef.current?.resize(width, height);
             obstaclesLayerRef.current?.resize(width, height);
             particlesLayerRef.current?.resize(width, height);
@@ -147,7 +167,6 @@ export function usePixiApp(containerRef: React.RefObject<HTMLDivElement | null>)
 
         app.renderer.on('resize', handleResize);
       } else {
-        // Если компонент размонтирован до завершения init
         app.destroy(true);
       }
     }).catch((err) => {

@@ -51,8 +51,8 @@ export class PlayerTokenNode extends Container {
   private pulseTime: number = 0;
   private isDestroyed: boolean = false;
 
-  private static TOKEN_RADIUS = 36;
-  private static MASK_RADIUS = 32;
+  private static TOKEN_RADIUS = 52;
+  private static MASK_RADIUS = 46;
 
   constructor(player: Player, isCurrentTurn: boolean) {
     super();
@@ -165,9 +165,9 @@ export class PlayerTokenNode extends Container {
    */
   private drawPlaque(): void {
     this.namePlaque.clear();
-    const plaqueY = PlayerTokenNode.TOKEN_RADIUS + 14;
-    const textWidth = Math.max(76, this.nameText.width + 16);
-    const textHeight = 20;
+    const plaqueY = PlayerTokenNode.TOKEN_RADIUS + 16;
+    const textWidth = Math.max(88, this.nameText.width + 18);
+    const textHeight = 22;
 
     const strokeColor = this.isCurrentTurn ? 0xd97706 : (this.player.isAlive ? 0x44403c : 0x27272a);
 
