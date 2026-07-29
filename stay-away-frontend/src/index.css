@@ -1,13 +1,48 @@
 @import "tailwindcss";
 
+:root {
+  --bg-dark: #0b0e14;
+  --panel-bg: #161b26;
+  --panel-border: #263042;
+  --primary-rust: #d35400;
+  --infected-slime: #27ae60;
+  --flame-amber: #f39c12;
+  --danger-red: #c0392b;
+}
+
 @theme {
   --font-outfit: 'Outfit', sans-serif;
   --font-cinzel: 'Cinzel', serif;
   --font-special-elite: 'Special Elite', monospace;
   
-  --color-horror-bg: #070a0f;
+  --color-horror-bg: var(--bg-dark);
+  --color-panel-bg: var(--panel-bg);
+  --color-panel-border: var(--panel-border);
+  --color-primary-rust: var(--primary-rust);
+  --color-infected-slime: var(--infected-slime);
+  --color-flame-amber: var(--flame-amber);
+  --color-danger-red: var(--danger-red);
   --color-parchment-bg: #d8c7a1;
   --color-parchment-text: #2b1f14;
+}
+
+/* Кастомные скроллбары */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--panel-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-rust);
 }
 
 /* Шрифтовые классы */
@@ -116,4 +151,11 @@ body {
 
 .glow-lamp-text {
   text-shadow: 0 0 10px rgba(245, 158, 11, 0.6), 0 0 20px rgba(217, 119, 6, 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glow-lamp,
+  .glow-lamp-box {
+    animation: none;
+  }
 }
