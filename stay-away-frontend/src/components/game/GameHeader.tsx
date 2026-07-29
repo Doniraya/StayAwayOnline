@@ -171,6 +171,32 @@ export default function GameHeader() {
         </div>
       </div>
 
+      {/* Верхний баннер пошаговой подсказки (Turn Guidance Banner) */}
+      <div className="turn-guidance-banner rounded-xl border border-amber-900/40">
+        <span className="bg-[#d35400] text-white text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+          {gameState.phase === 'DRAW'
+            ? 'Шаг 1 из 3'
+            : gameState.phase === 'PLAY_OR_DISCARD'
+            ? 'Шаг 2 из 3'
+            : gameState.phase === 'TRADE' || gameState.phase === 'TRADE_ACCEPT'
+            ? 'Шаг 3 из 3'
+            : 'Информация'}
+        </span>
+        <span className="text-xs md:text-sm font-semibold text-slate-100">
+          {gameState.phase === 'DRAW'
+            ? 'Нажмите на колоду в центре, чтобы взять 1 карту'
+            : gameState.phase === 'PLAY_OR_DISCARD'
+            ? 'Выберите карту события с руки для розыгрыша или сброса'
+            : gameState.phase === 'TRADE'
+            ? 'Выберите 1 карту события для предложения обмена соседу'
+            : gameState.phase === 'TRADE_ACCEPT'
+            ? 'Выберите 1 карту события для ответа на обмен'
+            : gameState.phase === 'RESPOND'
+            ? 'Сыграйте карту защиты или примите результат атаки'
+            : currentPhaseTitle}
+        </span>
+      </div>
+
       {/* Панель хоста (быстрая смена кресла и задержка ботов) */}
       {isHost && (
         <div className="w-full flex flex-wrap items-center justify-between bg-slate-950/80 border border-slate-800/80 px-3 py-1.5 rounded-xl text-xs gap-2">

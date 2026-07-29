@@ -36,13 +36,13 @@ export default function InGameChat() {
     <div
       className={`relative z-40 w-full transition-all duration-300 ${
         isCollapsed ? 'h-12' : 'h-80'
-      } flex flex-col rounded-xl border border-slate-700/60 bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-slate-950 shadow-2xl backdrop-blur-md overflow-hidden border-t-slate-600/50`}
+      } flex flex-col rounded-xl border border-[#263042] bg-[#161b26] shadow-2xl backdrop-blur-md overflow-hidden`}
       style={{
-        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
       }}
     >
       {/* Шапка чата — тёмно-металлический блок */}
-      <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-slate-800/90 via-slate-900/90 to-slate-800/90 border-b border-slate-700/50 cursor-pointer select-none">
+      <div className="flex items-center justify-between px-3 py-2 bg-[#11151f] border-b border-[#263042] cursor-pointer select-none">
         <div
           className="flex items-center gap-2 text-slate-200 hover:text-amber-400 transition"
           onClick={() => setIsCollapsed(!isCollapsed)}
