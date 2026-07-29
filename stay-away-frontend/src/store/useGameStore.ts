@@ -153,11 +153,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         myPlayerId: null,
         controlledPlayerId: null,
         roomCodeInput: '',
+        chatMessages: [],
       });
     };
 
     const onChatMessage = (msg: ChatMessage) => {
-      set((state) => ({ chatMessages: [...state.chatMessages, msg] }));
+      set((state) => ({
+        chatMessages: [...state.chatMessages.slice(-99), msg],
+      }));
     };
 
     socket.on(SOCKET_EVENTS.GAME_STATE_UPDATED, onGameStateUpdated);
@@ -241,6 +244,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       myPlayerId: null,
       controlledPlayerId: null,
       roomCodeInput: '',
+      chatMessages: [],
     });
   },
 

@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Users, Play, X, LogOut, Plus, CheckCircle2, Clock } from 'lucide-react';
 import { GITHUB_REPO_URL, GithubIcon } from '../Github';
 import { useGameStore } from '../../store/useGameStore';
+import InGameChat from '../game/InGameChat';
 
 export default function LobbyScreen() {
   const gameState = useGameStore((s) => s.gameState);
@@ -223,6 +224,10 @@ export default function LobbyScreen() {
             </button>
           </div>
         )}
+
+        <div className="mt-6">
+          <InGameChat />
+        </div>
       </div>
     </div>
   );

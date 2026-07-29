@@ -344,25 +344,34 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on(SOCKET_EVENTS.SEND_CHAT_MESSAGE, ({ roomId, text }: { roomId: string; text: string }) => {
-    // BUG-001 fix: senderId берём из серверного маппинга, валидируем текст
+  const handleSendChatMessageAction = (payload?: any) => {
     const info = socketMap.get(socket.id);
     if (!info) return;
+    const { text } = payload || {};
+    if (typeof text !== 'string' || !text.trim()) return;
+
+    const targetRoomId = info.roomId;
     const senderId = info.playerId;
-    if (!roomId || !text || !text.trim()) return;
-    const safeText = text.trim().slice(0, 500);
-    const room = gameEngine.getRoom(roomId);
+    const room = gameEngine.getRoom(targetRoomId);
     if (!room) return;
+
     const player = room.players.find((p) => p.id === senderId);
     const senderName = player ? player.name : 'Неизвестный';
-    io.to(roomId).emit(SOCKET_EVENTS.CHAT_MESSAGE, {
-      id: Date.now().toString() + Math.random().toString(36).substring(2, 6),
+    const safeText = text.trim().slice(0, 200);
+
+    const chatMsg = {
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
       senderId,
       senderName,
       text: safeText,
       timestamp: Date.now(),
-    });
-  });
+    };
+
+    io.to(targetRoomId).emit(SOCKET_EVENTS.CHAT_MESSAGE, chatMsg);
+  };
+
+  socket.on(SOCKET_EVENTS.SEND_CHAT_MESSAGE, handleSendChatMessageAction);
+  socket.on(SOCKET_EVENTS.CHAT_MESSAGE, handleSendChatMessageAction);
 });
 
 const PORT = process.env.PORT || 3001;
