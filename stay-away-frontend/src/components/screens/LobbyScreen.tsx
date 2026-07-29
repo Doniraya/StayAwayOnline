@@ -173,19 +173,21 @@ export default function LobbyScreen() {
 
             <div className="flex gap-4 w-full md:w-auto">
               <button
+                type="button"
                 onClick={handleAddBot}
                 disabled={players.length >= MAX_PLAYERS}
-                className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-emerald-400 font-bold py-3 px-6 rounded-xl border border-slate-700 transition active:scale-95"
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed text-emerald-400 font-bold py-3.5 px-6 rounded-xl border border-slate-700 transition touch-manipulation cursor-pointer select-none text-base"
               >
                 <Bot className="w-5 h-5" /> + Бот
               </button>
 
               <button
+                type="button"
                 onClick={handleStartGame}
                 disabled={!canStart}
-                className={`flex-2 md:flex-none flex items-center justify-center gap-2 font-black text-lg py-3 px-8 rounded-xl transition-all active:scale-95 ${
+                className={`flex-2 md:flex-none flex items-center justify-center gap-2 font-black text-lg py-3.5 px-8 rounded-xl transition-all touch-manipulation cursor-pointer select-none ${
                   canStart
-                    ? 'bg-gradient-to-b from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] border border-red-500/30'
+                    ? 'bg-gradient-to-b from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 active:from-red-700 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] border border-red-500/30'
                     : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
                 }`}
               >
@@ -205,11 +207,12 @@ export default function LobbyScreen() {
             </div>
 
             <button
+              type="button"
               onClick={handleToggleReady}
-              className={`w-full md:w-auto flex items-center justify-center gap-2 font-bold py-3 px-8 rounded-xl transition-all border active:scale-95 ${
+              className={`w-full md:w-auto flex items-center justify-center gap-2 font-bold py-3.5 px-8 rounded-xl transition-all border touch-manipulation cursor-pointer select-none text-base ${
                 me?.isReady
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
-                  : 'bg-amber-600 hover:bg-amber-500 text-white border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
+                  : 'bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
               }`}
             >
               {me?.isReady ? (

@@ -212,12 +212,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   handleCreateRoom: () => {
     const { playerName, showToast } = get();
     if (!playerName.trim()) return showToast('Введите ваше имя!', 'error');
+    if (!socket.connected) {
+      socket.connect();
+    }
     socket.emit(SOCKET_EVENTS.CREATE_ROOM, { playerName }, (res: { success: boolean; roomId: string; playerId: string }) => {
-      if (res.success) {
+      if (res && res.success) {
         set({ myPlayerId: res.playerId, controlledPlayerId: res.playerId });
         const sessionData = JSON.stringify({ roomId: res.roomId, playerId: res.playerId, playerName });
         sessionStorage.setItem('stayAwaySession', sessionData);
         localStorage.setItem('stayAwaySession', sessionData);
+      } else {
+        showToast('Не удалось создать комнату. Проверьте соединение!', 'error');
       }
     });
   },
@@ -225,14 +230,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   handleJoinRoom: () => {
     const { playerName, roomCodeInput, showToast } = get();
     if (!playerName.trim() || !roomCodeInput.trim()) return showToast('Заполните данные для входа!', 'error');
+    if (!socket.connected) {
+      socket.connect();
+    }
     socket.emit(SOCKET_EVENTS.JOIN_ROOM, { roomId: roomCodeInput.toUpperCase(), playerName }, (res: { success: boolean; playerId?: string; message?: string }) => {
-      if (res.success && res.playerId) {
+      if (res && res.success && res.playerId) {
         set({ myPlayerId: res.playerId, controlledPlayerId: res.playerId });
         const sessionData = JSON.stringify({ roomId: roomCodeInput.toUpperCase(), playerId: res.playerId, playerName });
         sessionStorage.setItem('stayAwaySession', sessionData);
         localStorage.setItem('stayAwaySession', sessionData);
       } else {
-        showToast(res.message || 'Ошибка входа', 'error');
+        showToast(res?.message || 'Ошибка входа в комнату', 'error');
       }
     });
   },

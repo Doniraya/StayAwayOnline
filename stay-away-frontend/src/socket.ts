@@ -1,9 +1,17 @@
 import { io } from 'socket.io-client';
 
-// Если задана переменная VITE_SERVER_URL (на хостинге), берем её, иначе localhost:3001
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+// Вычисление динамического хоста для подключения с мобильных устройств по IP в Wi-Fi сети
+const getSocketUrl = () => {
+  if (import.meta.env.VITE_SERVER_URL) {
+    return import.meta.env.VITE_SERVER_URL;
+  }
+  const hostname = typeof window !== 'undefined' && window.location ? window.location.hostname : 'localhost';
+  return `http://${hostname}:3001`;
+};
 
-export const socket = io(SERVER_URL, {
+export const socket = io(getSocketUrl(), {
   autoConnect: true,
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  reconnectionAttempts: 10,
+  reconnectionDelay: 1000,
 });

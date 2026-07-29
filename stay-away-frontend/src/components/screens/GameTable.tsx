@@ -56,7 +56,7 @@ export default function GameTable() {
   if (!gameState) return null;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-3 md:p-4 overflow-hidden relative gap-3">
+    <div className="h-screen max-h-screen w-screen max-w-full bg-slate-950 text-white flex flex-col justify-between p-3 md:p-4 overflow-hidden relative gap-3">
       {/* Модальные окна */}
       <VictoryModal />
       <DefenseModal />
@@ -69,17 +69,17 @@ export default function GameTable() {
       {/* 2. Центр: 3-колоночный layout */}
       <div className="flex-1 flex flex-col lg:flex-row gap-4 items-stretch min-h-0 overflow-hidden relative z-10">
         {/* Левая колонка: InGameChat (внизу слева) */}
-        <div className="w-full lg:w-80 shrink-0 flex flex-col justify-end gap-3">
+        <div className="w-full lg:w-80 shrink-0 flex flex-col justify-end gap-3 min-h-0">
           <InGameChat />
         </div>
 
         {/* Центральная колонка: TableCircle + панель контролов + PlayerHand */}
-        <div className="flex-1 flex flex-col justify-between items-center gap-3 min-w-0 overflow-y-auto scrollbar-none">
-          <div className="w-full flex-1 flex items-center justify-center min-h-[300px]">
+        <div className="flex-1 flex flex-col justify-between items-center gap-2 min-w-0 h-full min-h-0 overflow-hidden relative">
+          <div className="w-full flex-1 flex items-center justify-center min-h-0 relative overflow-hidden">
             <TableCircle />
           </div>
 
-          <div className="bg-slate-950/90 border border-slate-800/80 backdrop-blur-md p-3 md:p-4 rounded-2xl flex flex-col items-center space-y-3 z-10 w-full max-w-4xl shadow-2xl relative shrink-0">
+          <div className="bg-slate-950/90 border border-slate-800/80 backdrop-blur-md p-2 md:p-3 rounded-2xl flex flex-col items-center space-y-2 z-10 w-full max-w-4xl shadow-2xl relative shrink-0">
             <PanicActionBar />
             <ActionControlBar />
             <PlayerHand />
