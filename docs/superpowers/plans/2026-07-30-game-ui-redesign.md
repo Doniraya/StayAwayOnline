@@ -293,10 +293,10 @@ git commit -m "feat(ui): система кастомизации аватаро�
 - Consumes: Player array with `id`, `name`, `avatarUrl`, `isCurrentTurn`, `isQuarantined`.
 - Produces: `PlayerTokensLayer` rendering round tokens with masked custom avatars on 2.5D orbit.
 
-- [ ] **Step 1: Implement `PlayerTokensLayer.ts`**
-- [ ] **Step 2: Add dynamic avatar loading via `Assets.load()` and circular mask**
-- [ ] **Step 3: Run build to verify**
-- [ ] **Step 4: Commit Task 4**
+- [x] **Step 1: Implement `PlayerTokensLayer.ts`**
+- [x] **Step 2: Add dynamic avatar loading via `Assets.load()` and circular mask**
+- [x] **Step 3: Run build to verify**
+- [x] **Step 4: Commit Task 4**
 
 ```bash
 git add stay-away-frontend/src/components/game/pixi/layers/PlayerTokensLayer.ts
@@ -337,10 +337,10 @@ git commit -m "feat(ui): добавление слоя ObstaclesLayer для д�
 - Consumes: Trigger methods `spawnFlamethrower(x, y)`, `spawnInfectionSlime(x, y)`.
 - Produces: Real-time particle emitter effects on Pixi Ticker.
 
-- [ ] **Step 1: Implement `ParticlesLayer.ts`**
-- [ ] **Step 2: Connect to action triggers**
-- [ ] **Step 3: Verify build passes**
-- [ ] **Step 4: Commit Task 6**
+- [x] **Step 1: Implement `ParticlesLayer.ts`**
+- [x] **Step 2: Connect to action triggers**
+- [x] **Step 3: Verify build passes**
+- [x] **Step 4: Commit Task 6**
 
 ```bash
 git add stay-away-frontend/src/components/game/pixi/layers/ParticlesLayer.ts
@@ -358,10 +358,10 @@ git commit -m "feat(ui): реализация партикловой систе�
 - Consumes: Player cards array (`Card[]`).
 - Produces: 3D arc hand fan layout with type-based glowing aura and touch/hover gestures.
 
-- [ ] **Step 1: Refactor `PlayerHand.tsx` using Framer Motion 3D arc transforms**
-- [ ] **Step 2: Add glow aura styles (Red attack, Blue event, Green panic/infection)**
-- [ ] **Step 3: Verify build passes**
-- [ ] **Step 4: Commit Task 7**
+- [x] **Step 1: Refactor `PlayerHand.tsx` using Framer Motion 3D arc transforms**
+- [x] **Step 2: Add glow aura styles (Red attack, Blue event, Green panic/infection)**
+- [x] **Step 3: Verify build passes**
+- [x] **Step 4: Commit Task 7**
 
 ```bash
 git add stay-away-frontend/src/components/game/PlayerHand.tsx
