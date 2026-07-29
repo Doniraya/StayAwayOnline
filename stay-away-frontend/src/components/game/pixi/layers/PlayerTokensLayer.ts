@@ -351,6 +351,15 @@ export class PlayerTokensLayer extends Container {
   }
 
   /**
+   * Возвращает экранные координаты жетона игрока по его ID
+   */
+  public getPlayerPosition(playerId: string): { x: number; y: number } | null {
+    const node = this.tokenNodesMap.get(playerId);
+    if (!node) return null;
+    return { x: node.position.x, y: node.position.y };
+  }
+
+  /**
    * Изменение размеров экрана и пересчёт орбит
    */
   public resize(width: number, height: number): void {
@@ -359,3 +368,4 @@ export class PlayerTokensLayer extends Container {
     this.calculateOrbits();
   }
 }
+
