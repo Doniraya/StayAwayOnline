@@ -1,6 +1,4 @@
-@import "tailwindcss";
-
-/* Базовый сброс для полноэкранного 2D Canvas Движка */
+/* Стерильный CSS Reset */
 html, body, #root {
   margin: 0;
   padding: 0;
@@ -8,12 +6,6 @@ html, body, #root {
   height: 100vh;
   overflow: hidden;
   background-color: #070a0f;
-  user-select: none;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-}
-
-canvas {
-  display: block;
-  width: 100vw;
-  height: 100vh;
+  color: #ffffff;
+  font-family: system-ui, -apple-system, sans-serif;
 }
