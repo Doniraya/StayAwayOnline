@@ -5,3 +5,8 @@ Thumbs.db
 *.log
 .env
 other/
+_bmad/
+_bmad-output/
+.agent/
+design-artifacts/
+docs/

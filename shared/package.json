@@ -1,1 +1,6 @@
-{\r\n  \"name\": \"@stay-away/shared\",\r\n  \"version\": \"1.0.0\",\r\n  \"description\": \"Общие типы и константы для StayAwayOnline\",\r\n  \"main\": \"index.ts\"\r\n}\r\n
+{
+  "name": "@stay-away/shared",
+  "version": "1.0.0",
+  "description": "Общие типы и константы для StayAwayOnline",
+  "main": "index.ts"
+}

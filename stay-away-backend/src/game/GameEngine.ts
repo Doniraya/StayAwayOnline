@@ -1,8 +1,10 @@
 import { GameState, Player, Card, Role } from '../types/game';
 import { generateDeck } from './deck';
 import { v4 as uuidv4 } from 'uuid';
-import { randomInt, randomBytes } from 'crypto';
+import { randomInt } from 'crypto';
 import { CardResolver, isDoorBarredBetween } from './CardResolver';
+import { RoomManager } from './RoomManager';
+import { BotAIEngine } from './BotAIEngine';
 
 const HIDDEN_DECK_CARD = { id: 'hidden', cardId: 'UNKNOWN' as any, name: '', type: 'STAY_AWAY' as const, minPlayers: 4, description: '' };
 
@@ -15,13 +17,54 @@ function secureShuffleInPlace<T>(array: T[]): T[] {
 }
 
 export class GameEngine {
-  private rooms: Map<string, GameState> = new Map();
-  private botTimers: Map<string, NodeJS.Timeout> = new Map();
+  private roomManager = new RoomManager();
+  private botAIEngine = new BotAIEngine();
   private cardResolver = new CardResolver();
 
+  constructor() {
+    const cleanupInterval = setInterval(() => {
+      this.cleanupStaleRooms();
+    }, 10 * 60 * 1000);
+    cleanupInterval.unref();
+  }
+
+  public getRoom(roomId: string): GameState | undefined {
+    return this.roomManager.getRoom(roomId);
+  }
+
+  public touchRoom(room: GameState): void {
+    this.roomManager.touchRoom(room);
+  }
+
+  public clearBotTimer(roomId: string): void {
+    this.botAIEngine.clearBotTimer(roomId);
+  }
+
+  public deleteRoom(roomId: string): boolean {
+    return this.roomManager.deleteRoom(roomId, (id) => this.clearBotTimer(id));
+  }
+
+  public cleanupStaleRooms(maxIdleMs: number = 60 * 60 * 1000): void {
+    this.roomManager.cleanupStaleRooms(maxIdleMs, (id) => this.clearBotTimer(id));
+  }
+
+  public setBotDelay(roomId: string, requesterId: string, delayMs: number): boolean {
+    return this.roomManager.setBotDelay(roomId, requesterId, delayMs);
+  }
+
+  public createRoom(hostName: string): { roomId: string; hostId: string } {
+    return this.roomManager.createRoom(hostName);
+  }
+
+  public canControlPlayer(room: GameState, requesterId: string, targetPlayerId: string): boolean {
+    return this.roomManager.canControlPlayer(room, requesterId, targetPlayerId);
+  }
+
   public replaceWithBot(roomId: string, requesterId: string, targetPlayerId: string): { success: boolean, error?: string } {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room) return { success: false, error: 'Комната не найдена' };
+
+    this.touchRoom(room);
 
     const requester = room.players.find(p => p.id === requesterId);
     if (!requester || !requester.isHost) return { success: false, error: 'Нет прав доступа' };
@@ -39,8 +82,10 @@ export class GameEngine {
   }
 
   public leaveRoom(roomId: string, playerId: string): boolean {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room) return false;
+
+    this.touchRoom(room);
 
     const playerIndex = room.players.findIndex(p => p.id === playerId);
     if (playerIndex === -1) return false;
@@ -56,13 +101,11 @@ export class GameEngine {
         if (newHost) {
           newHost.isHost = true;
           room.log.push(`👑 ${newHost.name} становится новым Хостом!`);
-        } else {
-          // If no one is left to be host, we could destroy the room, but for now we just leave it.
-          // Actually, if the room is empty, we can just delete it.
-          if (room.players.length === 0) {
-            this.rooms.delete(roomId);
-          }
         }
+      }
+
+      if (room.players.every(p => p.isBot || !p.isOnline)) {
+        this.deleteRoom(roomId);
       }
       return true;
     } else {
@@ -72,8 +115,10 @@ export class GameEngine {
   }
 
   public kickPlayer(roomId: string, requesterId: string, targetPlayerId: string): { success: boolean, error?: string } {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room) return { success: false, error: 'Комната не найдена' };
+
+    this.touchRoom(room);
 
     if (room.phase !== 'LOBBY') return { success: false, error: 'Исключать игроков можно только в Лобби' };
 
@@ -93,8 +138,10 @@ export class GameEngine {
   }
 
   public handlePlayerDisconnect(roomId: string, playerId: string): boolean {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room) return false;
+
+    this.touchRoom(room);
 
     const player = room.players.find(p => p.id === playerId);
     if (!player) return false;
@@ -111,46 +158,19 @@ export class GameEngine {
       }
     }
 
+    if (room.players.every(p => p.isBot || !p.isOnline)) {
+      this.deleteRoom(roomId);
+    }
+
     return true;
-  }
-
-  // 1. Создание комнаты
-  public createRoom(hostName: string): { roomId: string; hostId: string } {
-    const roomId = randomBytes(3).toString('hex').toUpperCase();
-    const hostId = uuidv4();
-
-    const hostPlayer: Player = {
-      id: hostId,
-      name: hostName,
-      isBot: false,
-      isHost: true,
-      hand: [],
-      role: 'HUMAN',
-      isAlive: true,
-      isInQuarantine: false,
-      isOnline: true
-    };
-
-    const newState: GameState = {
-      roomId,
-      phase: 'LOBBY',
-      players: [hostPlayer],
-      currentTurnIndex: 0,
-      direction: 1,
-      deck: [],
-      discardPile: [],
-      barredDoors: [],
-      log: [`Комната ${roomId} создана. Хост: ${hostName}`]
-    };
-
-    this.rooms.set(roomId, newState);
-    return { roomId, hostId };
   }
 
   // 2. Вход в комнату
   public joinRoom(roomId: string, playerName: string): Player | null {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room || room.phase !== 'LOBBY' || room.players.length >= 12) return null;
+
+    this.touchRoom(room);
 
     const newPlayer: Player = {
       id: uuidv4(),
@@ -171,8 +191,10 @@ export class GameEngine {
 
   // 3. Добавление Бота
   public addBot(roomId: string): Player | null {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room || room.phase !== 'LOBBY' || room.players.length >= 12) return null;
+
+    this.touchRoom(room);
 
     const botNumber = room.players.filter(p => p.isBot).length + 1;
     const botPlayer: Player = {
@@ -192,10 +214,32 @@ export class GameEngine {
     return botPlayer;
   }
 
+  public toggleReady(roomId: string, playerId: string): { success: boolean; error?: string } {
+    const room = this.roomManager.getRoom(roomId);
+    if (!room) return { success: false, error: 'Комната не найдена' };
+    if (room.phase !== 'LOBBY') return { success: false, error: 'Игра уже началась' };
+
+    const player = room.players.find((p) => p.id === playerId);
+    if (!player) return { success: false, error: 'Игрок не найден' };
+    if (player.isHost || player.isBot) return { success: false, error: 'Хост и боты всегда готовы' };
+    if (!player.isOnline) return { success: false, error: 'Игрок не в сети' };
+
+    player.isReady = !player.isReady;
+    this.touchRoom(room);
+    room.log.push(`Игрок ${player.name} ${player.isReady ? 'готов' : 'не готов'}.`);
+
+    return { success: true };
+  }
+
   // 4. Старт игры (с правильной стартовой раздачей)
   public startGame(roomId: string): boolean {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room || room.players.length < 4) return false;
+
+    const unreadyHumans = room.players.filter(p => !p.isHost && !p.isBot && (!p.isReady || !p.isOnline));
+    if (unreadyHumans.length > 0) return false;
+
+    this.touchRoom(room);
 
     const { deck, thingCard } = generateDeck(room.players.length);
 
@@ -242,8 +286,10 @@ export class GameEngine {
 
   // 5. Перезапуск игры
   public restartGame(roomId: string, requesterId: string): boolean {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room) return false;
+
+    this.touchRoom(room);
 
     const player = room.players.find(p => p.id === requesterId);
     if (!player?.isHost) return false;
@@ -258,14 +304,6 @@ export class GameEngine {
     });
     room.log.push('🔄 Игра сброшена. Возврат в Лобби.');
     return true;
-  }
-
-  // 6. Проверка прав управления игроком/ботом
-  public canControlPlayer(room: GameState, requesterId: string, targetPlayerId: string): boolean {
-    if (requesterId === targetPlayerId) return true;
-    const requester = room.players.find(p => p.id === requesterId);
-    const target = room.players.find(p => p.id === targetPlayerId);
-    return Boolean(requester?.isHost && target?.isBot);
   }
 
   // 7. Проверка условий победы
@@ -294,9 +332,11 @@ export class GameEngine {
 
   // 8. Добор карты
   public drawCard(roomId: string, requesterId: string, targetPlayerId: string): { success: boolean; error?: string; revealData?: any } {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room || room.phase !== 'DRAW') return { success: false, error: 'Не фаза добора карт' };
     if (!this.canControlPlayer(room, requesterId, targetPlayerId)) return { success: false, error: 'Нет прав доступа' };
+
+    this.touchRoom(room);
 
     const currentPlayer = room.players[room.currentTurnIndex];
     if (currentPlayer.id !== targetPlayerId) return { success: false, error: 'Не твой ход' };
@@ -313,13 +353,16 @@ export class GameEngine {
 
     // 🚨 ЕСЛИ ВЫТЯНУТА КАРТА ПАНИКИ
     if (drawnCard.type === 'PANIC') {
-      const revealData = this.cardResolver.resolveInstantPanic(room, currentPlayer, drawnCard, (r, p) => this.drawReplacementCard(r, p));
-      if (revealData === undefined) {
+      const panicRevealData = { type: 'PANIC_DRAWN' as const, playerName: currentPlayer.name, card: drawnCard };
+      const instantRevealData = this.cardResolver.resolveInstantPanic(room, currentPlayer, drawnCard, (r, p) => this.drawReplacementCard(r, p));
+      const revealData = instantRevealData || panicRevealData;
+
+      if (instantRevealData === undefined) {
         // Требуется решение игрока
         room.phase = 'RESOLVE_PANIC';
         room.pendingPanic = drawnCard;
         room.log.push(`🚨 ПАНИКА! ${currentPlayer.name} вытащил "${drawnCard.name}" и должен принять решение..`);
-        return { success: true };
+        return { success: true, revealData };
       }
 
       room.discardPile.push(drawnCard);
@@ -331,11 +374,23 @@ export class GameEngine {
         return { success: true, revealData };
       }
 
-      room.phase = 'PLAY_OR_DISCARD';
+      this.prepareTradePhase(room);
       return { success: true, revealData };
     }
 
     currentPlayer.hand.push(drawnCard);
+
+    // BUG-005: Нельзя держать больше 3 карт "Заражение!" на руке
+    const infectedOnHand = currentPlayer.hand.filter(c => c.cardId === 'INFECTED').length;
+    if (infectedOnHand > 3) {
+      room.log.push(`⚠️ ${currentPlayer.name} превысил лимит карт "Заражение!" (${infectedOnHand}/3). Лишняя карта автоматически сброшена.`);
+      const excessIdx = currentPlayer.hand.findIndex(c => c.cardId === 'INFECTED');
+      if (excessIdx !== -1) {
+        const [excess] = currentPlayer.hand.splice(excessIdx, 1);
+        room.discardPile.push(excess);
+      }
+    }
+
     room.log.push(`${currentPlayer.name} взял карту из колоды.`);
 
     room.phase = 'PLAY_OR_DISCARD';
@@ -343,9 +398,11 @@ export class GameEngine {
   }
 
   public resolveTargetedPanic(roomId: string, requesterId: string, targetPlayerId: string, victimId?: string, cardId?: string): { success: boolean; error?: string; revealData?: any } {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room || room.phase !== 'RESOLVE_PANIC' || !room.pendingPanic) return { success: false, error: 'Сейчас нет ожидающей разыгрывания паники' };
     if (!this.canControlPlayer(room, requesterId, targetPlayerId)) return { success: false, error: 'Нет прав доступа' };
+
+    this.touchRoom(room);
 
     const currentPlayer = room.players[room.currentTurnIndex];
     if (currentPlayer.id !== targetPlayerId) return { success: false, error: 'Не твой ход' };
@@ -368,7 +425,7 @@ export class GameEngine {
     if (result.endsTurn) {
       this.nextTurn(room);
     } else {
-      room.phase = 'PLAY_OR_DISCARD';
+      this.prepareTradePhase(room);
     }
 
     return { success: true, revealData: result.revealData };
@@ -384,11 +441,11 @@ export class GameEngine {
       }
 
       const drawnCard = room.deck.pop();
-      if (!drawnCard) break; // Should not happen if deck generation is correct, but safe
+      if (!drawnCard) break;
 
       if (drawnCard.type === 'PANIC') {
         room.discardPile.push(drawnCard);
-        room.log.push(`🚨 ПАНИКА! ${player.name} вытащил карту Паники при замене, она уходит в сброс.`);
+        room.log.push(`🚨 ПАНИКА! ${player.name} вытащил карту Паники при замене, она уходит в сброс лицевой стороной вниз.`);
       } else if (drawnCard.type === 'STAY_AWAY') {
         player.hand.push(drawnCard);
         room.log.push(`🛡️ ${player.name} взял карту на замену.`);
@@ -406,9 +463,11 @@ export class GameEngine {
     victimPlayerId?: string,
     doorIndex?: number
   ): { success: boolean; error?: string; revealData?: any } {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room || room.phase !== 'PLAY_OR_DISCARD') return { success: false, error: 'Нельзя сыграть карту сейчас' };
     if (!this.canControlPlayer(room, requesterId, targetPlayerId)) return { success: false, error: 'Нет прав доступа' };
+
+    this.touchRoom(room);
 
     const player = room.players.find(p => p.id === targetPlayerId);
     if (!player) return { success: false, error: 'Игрок не найден' };
@@ -423,7 +482,6 @@ export class GameEngine {
     const result = this.cardResolver.resolveActionCard(room, player, playedCard, targetPlayerId, victimPlayerId, doorIndex);
 
     if (!result.success) {
-      // Put card back in hand if play was invalid
       player.hand.splice(cardIndex, 0, playedCard);
       return { success: false, error: result.error };
     }
@@ -444,12 +502,17 @@ export class GameEngine {
 
   // 10. Ответ на атаку ("Мимо!")
   public respondToAttack(roomId: string, requesterId: string, victimId: string, defenseCardId?: string): { success: boolean; error?: string } {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room || room.phase !== 'RESPOND') return { success: false, error: 'Не фаза защиты' };
     if (!this.canControlPlayer(room, requesterId, victimId)) return { success: false, error: 'Нет прав доступа' };
 
+    this.touchRoom(room);
+
     const victim = room.players.find(p => p.id === victimId);
     if (!victim) return { success: false, error: 'Игрок не найден' };
+
+    const defenseInfo = room.pendingDefense;
+    const attackType = defenseInfo?.attackType || 'FLAMETHROWER';
 
     if (defenseCardId) {
       const cardIdx = victim.hand.findIndex(c => c.id === defenseCardId);
@@ -457,11 +520,28 @@ export class GameEngine {
         const [defCard] = victim.hand.splice(cardIdx, 1);
         room.discardPile.push(defCard);
         this.drawReplacementCard(room, victim);
-        room.log.push(`🛡️ ${victim.name} сыграл "${defCard.name}" и успешно увернулся от атаки!`);
+        if (attackType === 'CHANGE_SEATS' || attackType === 'YOU_BETTER_RUN') {
+          room.log.push(`🛡️ ${victim.name} сыграл "${defCard.name}" и остался на своём месте!`);
+        } else {
+          room.log.push(`🛡️ ${victim.name} сыграл "${defCard.name}" и успешно увернулся от атаки!`);
+        }
       }
     } else {
-      victim.isAlive = false;
-      room.log.push(`🔥 ${victim.name} не защитился и сгорел от Огнемёта!`);
+      if (attackType === 'FLAMETHROWER') {
+        victim.isAlive = false;
+        room.log.push(`🔥 ${victim.name} не защитился и сгорел от Огнемёта!`);
+      } else if (attackType === 'CHANGE_SEATS' || attackType === 'YOU_BETTER_RUN') {
+        if (defenseInfo?.attackerId) {
+          const attackerIndex = room.players.findIndex(p => p.id === defenseInfo.attackerId);
+          const victimIndex = room.players.findIndex(p => p.id === victim.id);
+          if (attackerIndex !== -1 && victimIndex !== -1) {
+            const attacker = room.players[attackerIndex];
+            [room.players[attackerIndex], room.players[victimIndex]] = [room.players[victimIndex], room.players[attackerIndex]];
+            room.currentTurnIndex = victimIndex;
+            room.log.push(`🪑 ${victim.name} не защитился, и ${attacker.name} поменялся местами с ${victim.name}!`);
+          }
+        }
+      }
     }
 
     room.pendingDefense = undefined;
@@ -476,9 +556,11 @@ export class GameEngine {
 
   // 11. Отмена обмена ("Нет уж, спасибо!")
   public cancelTradeWithNoThanks(roomId: string, requesterId: string, targetPlayerId: string, cardId: string): { success: boolean; error?: string } {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room || room.phase !== 'TRADE_ACCEPT' || !room.pendingTrade) return { success: false, error: 'Не фаза ответа на обмен' };
     if (!this.canControlPlayer(room, requesterId, targetPlayerId)) return { success: false, error: 'Нет прав доступа' };
+
+    this.touchRoom(room);
 
     const receiver = room.players.find(p => p.id === targetPlayerId);
     if (!receiver) return { success: false, error: 'Игрок не найден' };
@@ -503,9 +585,11 @@ export class GameEngine {
 
   // 11b. Отмена обмена ("Страх")
   public cancelTradeWithFear(roomId: string, requesterId: string, targetPlayerId: string, cardId: string): { success: boolean; error?: string; revealData?: any } {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room || room.phase !== 'TRADE_ACCEPT' || !room.pendingTrade) return { success: false, error: 'Не фаза ответа на обмен' };
     if (!this.canControlPlayer(room, requesterId, targetPlayerId)) return { success: false, error: 'Нет прав доступа' };
+
+    this.touchRoom(room);
 
     const receiver = room.players.find(p => p.id === targetPlayerId);
     if (!receiver) return { success: false, error: 'Игрок не найден' };
@@ -525,12 +609,10 @@ export class GameEngine {
     const sender = room.players.find(p => p.id === room.pendingTrade!.fromPlayerId);
     if (!sender) return { success: false, error: 'Отправитель не найден' };
 
-    // Сбросить карту Страх
     const [fearCard] = receiver.hand.splice(cardIdx, 1);
     room.discardPile.push(fearCard);
     this.drawReplacementCard(room, receiver);
 
-    // Вернуть предложенную карту отправителю
     sender.hand.push(room.pendingTrade.offeredCard);
 
     room.log.push(`😱 ${receiver.name} сыграл СТРАХ, посмотрел предложенную карту и отказался от обмена!`);
@@ -541,9 +623,11 @@ export class GameEngine {
 
   // 11c. Перенаправление обмена ("Мимо!")
   public redirectTradeWithMiss(roomId: string, requesterId: string, targetPlayerId: string, cardId: string): { success: boolean; error?: string } {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room || room.phase !== 'TRADE_ACCEPT' || !room.pendingTrade) return { success: false, error: 'Не фаза ответа на обмен' };
     if (!this.canControlPlayer(room, requesterId, targetPlayerId)) return { success: false, error: 'Нет прав доступа' };
+
+    this.touchRoom(room);
 
     const receiver = room.players.find(p => p.id === targetPlayerId);
     if (!receiver) return { success: false, error: 'Игрок не найден' };
@@ -571,20 +655,17 @@ export class GameEngine {
 
     const nextPlayer = room.players[nextIndex];
 
-    // Сбросить карту Мимо
     const [missCard] = receiver.hand.splice(cardIdx, 1);
     room.discardPile.push(missCard);
     this.drawReplacementCard(room, receiver);
 
     if (nextPlayer.isInQuarantine || isDoorBarredBetween(room, receiverIndex, nextIndex)) {
-      // Обмен сгорает
       sender.hand.push(room.pendingTrade.offeredCard);
       room.log.push(`💨 ${receiver.name} сыграл "Мимо!", но путь к ${nextPlayer.name} заблокирован! Обмен сгорает.`);
       this.nextTurn(room);
       return { success: true };
     }
 
-    // Перенаправить обмен
     room.pendingTrade.toPlayerId = nextPlayer.id;
     room.log.push(`💨 ${receiver.name} сыграл "Мимо!" и перевел обмен на ${nextPlayer.name}!`);
 
@@ -593,9 +674,11 @@ export class GameEngine {
 
   // 12. Сброс карты
   public discardCard(roomId: string, requesterId: string, targetPlayerId: string, cardId: string): { success: boolean; error?: string } {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room || (room.phase !== 'PLAY_OR_DISCARD' && room.phase !== 'DRAW')) return { success: false, error: 'Нельзя сбросить карту' };
     if (!this.canControlPlayer(room, requesterId, targetPlayerId)) return { success: false, error: 'Нет прав доступа' };
+
+    this.touchRoom(room);
 
     const player = room.players.find(p => p.id === targetPlayerId);
     if (!player) return { success: false, error: 'Игрок не найден' };
@@ -605,6 +688,14 @@ export class GameEngine {
 
     if (player.hand[cardIndex].cardId === 'THING') {
       return { success: false, error: 'Нельзя сбросить карту Нечто!' };
+    }
+
+    // BUG-004: Заражённый обязан держать минимум 1 карту "Заражение!" на руке
+    if (player.hand[cardIndex].cardId === 'INFECTED' && player.role === 'INFECTED') {
+      const infectedCount = player.hand.filter(c => c.cardId === 'INFECTED').length;
+      if (infectedCount <= 1) {
+        return { success: false, error: 'Заражённый не может сбросить последнюю карту "Заражение!"!' };
+      }
     }
 
     const [discardedCard] = player.hand.splice(cardIndex, 1);
@@ -640,10 +731,12 @@ export class GameEngine {
 
   // 14. Предложение обмена
   public offerTrade(roomId: string, requesterId: string, targetPlayerId: string, cardId: string): { success: boolean; error?: string } {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room || room.phase !== 'TRADE' || !room.pendingTrade) return { success: false, error: 'Не фаза обмена' };
     if (!this.canControlPlayer(room, requesterId, targetPlayerId)) return { success: false, error: 'Нет прав доступа' };
     if (room.pendingTrade.fromPlayerId !== targetPlayerId) return { success: false, error: 'Не твой черед предлагать карту' };
+
+    this.touchRoom(room);
 
     const player = room.players.find(p => p.id === targetPlayerId);
     const card = player?.hand.find(c => c.id === cardId);
@@ -658,6 +751,10 @@ export class GameEngine {
     }
 
     if (player.role === 'INFECTED' && card.cardId === 'INFECTED') {
+      const infectedCount = player.hand.filter(c => c.cardId === 'INFECTED').length;
+      if (infectedCount <= 1) {
+        return { success: false, error: 'Зараженный не может отдать последнюю карту "Заражение!"' };
+      }
       const receiver = room.players.find(p => p.id === room.pendingTrade!.toPlayerId);
       if (receiver && receiver.role !== 'THING') {
         return { success: false, error: 'Зараженный может передать инфекцию только Нечто!' };
@@ -672,10 +769,12 @@ export class GameEngine {
 
   // 15. Подтверждение обмена
   public acceptTrade(roomId: string, requesterId: string, targetPlayerId: string, responseCardId: string): { success: boolean; error?: string } {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room || room.phase !== 'TRADE_ACCEPT' || !room.pendingTrade) return { success: false, error: 'Не фаза ответа на обмен' };
     if (!this.canControlPlayer(room, requesterId, targetPlayerId)) return { success: false, error: 'Нет прав доступа' };
     if (room.pendingTrade.toPlayerId !== targetPlayerId || !room.pendingTrade.offeredCard) return { success: false, error: 'Не твой черед отвечать' };
+
+    this.touchRoom(room);
 
     const sender = room.players.find(p => p.id === room.pendingTrade!.fromPlayerId)!;
     const receiver = room.players.find(p => p.id === targetPlayerId)!;
@@ -695,6 +794,10 @@ export class GameEngine {
     }
 
     if (receiver.role === 'INFECTED' && receiverCard.cardId === 'INFECTED') {
+      const infectedCount = receiver.hand.filter(c => c.cardId === 'INFECTED').length;
+      if (infectedCount <= 1) {
+        return { success: false, error: 'Зараженный не может отдать последнюю карту "Заражение!"' };
+      }
       if (sender.role !== 'THING') {
         return { success: false, error: 'Зараженный может передать инфекцию только Нечто!' };
       }
@@ -724,6 +827,50 @@ export class GameEngine {
     return { success: true };
   }
 
+  // 15.5. Выбор карты при Упорстве
+  public resolvePersistenceCard(
+    roomId: string,
+    requesterId: string,
+    targetPlayerId: string,
+    cardId: string
+  ): { success: boolean; error?: string } {
+    const room = this.roomManager.getRoom(roomId);
+    if (!room) return { success: false, error: 'Комната не найдена' };
+    if (room.phase !== 'RESOLVE_PERSISTENCE' || !room.pendingPersistence) {
+      return { success: false, error: 'Не фаза выбора карты Упорства' };
+    }
+    if (!this.canControlPlayer(room, requesterId, targetPlayerId)) {
+      return { success: false, error: 'Нет прав доступа' };
+    }
+
+    this.touchRoom(room);
+
+    const player = room.players.find(p => p.id === targetPlayerId);
+    if (!player) return { success: false, error: 'Игрок не найден' };
+
+    const cards = room.pendingPersistence.cards;
+    const cardIndex = cards.findIndex(c => c.id === cardId);
+    if (cardIndex === -1) {
+      return { success: false, error: 'Выбранная карта не найдена среди вытянутых' };
+    }
+
+    const chosenCard = cards[cardIndex];
+    player.hand.push(chosenCard);
+
+    for (let i = 0; i < cards.length; i++) {
+      if (i !== cardIndex) {
+        room.discardPile.push(cards[i]);
+      }
+    }
+
+    room.log.push(`💪 ${player.name} выбрал 1 карту по эффекту "Упорство", остальные ${cards.length - 1} сброшены.`);
+
+    room.pendingPersistence = undefined;
+    room.phase = 'PLAY_OR_DISCARD';
+
+    return { success: true };
+  }
+
   // 16. Переход хода
   private nextTurn(room: GameState) {
     room.pendingTrade = undefined;
@@ -748,151 +895,15 @@ export class GameEngine {
   }
 
   // 17. 🤖 АЛГОРИТМ ИИ БОТОВ
-  public checkAndExecuteBotTurn(roomId: string, broadcastCallback: () => void) {
-    const room = this.rooms.get(roomId);
-    if (!room || room.phase === 'GAME_OVER' || room.phase === 'LOBBY') return;
-
-    let actingBot: Player | undefined;
-
-    if (room.phase === 'DRAW' || room.phase === 'PLAY_OR_DISCARD' || room.phase === 'TRADE') {
-      const current = room.players[room.currentTurnIndex];
-      if (current?.isBot && current?.isAlive) actingBot = current;
-    } 
-    else if (room.phase === 'TRADE_ACCEPT' && room.pendingTrade) {
-      const target = room.players.find(p => p.id === room.pendingTrade!.toPlayerId);
-      if (target?.isBot && target?.isAlive) actingBot = target;
-    } 
-    else if (room.phase === 'RESPOND' && room.pendingDefense) {
-      const victim = room.players.find(p => p.id === room.pendingDefense!.victimId);
-      if (victim?.isBot && victim?.isAlive) actingBot = victim;
-    }
-    else if (room.phase === 'RESOLVE_PANIC' && room.pendingPanic) {
-      const current = room.players[room.currentTurnIndex];
-      if (current?.isBot && current?.isAlive) actingBot = current;
-    }
-
-    if (!actingBot) return;
-
-    if (this.botTimers.has(roomId)) {
-      clearTimeout(this.botTimers.get(roomId));
-    }
-
-    const timer = setTimeout(() => {
-      this.executeBotAction(room, actingBot!);
-      broadcastCallback();
-    }, 1000);
-
-    this.botTimers.set(roomId, timer);
-  }
-
-  private executeBotAction(room: GameState, bot: Player) {
-    const host = room.players.find(p => p.isHost);
-    const requesterId = host ? host.id : bot.id;
-
-    if (room.phase === 'DRAW') {
-      this.drawCard(room.roomId, requesterId, bot.id);
-    }
-    else if (room.phase === 'PLAY_OR_DISCARD') {
-      const safeDiscardCards = bot.hand.filter(c => c.cardId !== 'THING');
-      if (safeDiscardCards.length > 0) {
-        const randomCard = safeDiscardCards[randomInt(safeDiscardCards.length)];
-        this.discardCard(room.roomId, requesterId, bot.id, randomCard.id);
-      }
-    }
-    else if (room.phase === 'TRADE') {
-      let legalCards: Card[] = [];
-
-      if (bot.role === 'THING') {
-        const infectionCard = bot.hand.find(c => c.cardId === 'INFECTED');
-        // 80% chance for thing to offer infection card
-        if (infectionCard && randomInt(100) < 80) {
-          legalCards = [infectionCard];
-        } else {
-          legalCards = bot.hand.filter(c => c.cardId !== 'THING');
-        }
-      } else {
-        legalCards = bot.hand.filter(c => c.cardId !== 'THING' && c.cardId !== 'INFECTED');
-      }
-
-      if (legalCards.length === 0) legalCards = bot.hand.filter(c => c.cardId !== 'THING');
-      if (legalCards.length > 0) {
-        const tradeCard = legalCards[randomInt(legalCards.length)];
-        this.offerTrade(room.roomId, requesterId, bot.id, tradeCard.id);
-      }
-    }
-    else if (room.phase === 'TRADE_ACCEPT') {
-      const noThanksCard = bot.hand.find(c => c.cardId === 'NO_THANKS');
-      // 30% chance for bot to reject a trade with NO_THANKS
-      if (noThanksCard && randomInt(100) < 30) {
-        this.cancelTradeWithNoThanks(room.roomId, requesterId, bot.id, noThanksCard.id);
-        return;
-      }
-
-      let legalCards = bot.role === 'HUMAN' 
-        ? bot.hand.filter(c => c.cardId !== 'THING' && c.cardId !== 'INFECTED')
-        : bot.hand.filter(c => c.cardId !== 'THING');
-
-      if (legalCards.length === 0) legalCards = bot.hand.filter(c => c.cardId !== 'THING');
-      if (legalCards.length > 0) {
-        const responseCard = legalCards[randomInt(legalCards.length)];
-        this.acceptTrade(room.roomId, requesterId, bot.id, responseCard.id);
-      }
-    }
-    else if (room.phase === 'RESPOND') {
-      const defCard = bot.hand.find(c => c.cardId === 'MISS' || c.cardId === 'NO_BARBECUE');
-      this.respondToAttack(room.roomId, requesterId, bot.id, defCard ? defCard.id : undefined);
-    }
-    else if (room.phase === 'RESOLVE_PANIC' && room.pendingPanic) {
-      const panicCard = room.pendingPanic;
-      if (panicCard.cardId === 'PANIC_BLIND_DATE') {
-        let legalCards = bot.hand.filter(c => c.cardId !== 'THING');
-        if (bot.role === 'INFECTED') {
-          const infectedCards = legalCards.filter(c => c.cardId === 'INFECTED');
-          if (infectedCards.length === 1) {
-            legalCards = legalCards.filter(c => c.cardId !== 'INFECTED');
-          } else if (infectedCards.length > 1) {
-            const firstInfectedId = infectedCards[0].id;
-            legalCards = legalCards.filter(c => c.id !== firstInfectedId);
-          }
-        }
-        if (legalCards.length === 0) legalCards = bot.hand.filter(c => c.cardId !== 'THING');
-
-        if (legalCards.length > 0) {
-          const chosenCard = legalCards[randomInt(legalCards.length)];
-          this.resolveTargetedPanic(room.roomId, requesterId, bot.id, undefined, chosenCard.id);
-        }
-      } else if (['PANIC_GET_OUT', 'PANIC_FRIENDS', 'PANIC_BETWEEN_US', 'PANIC_ONE_TWO'].includes(panicCard.cardId)) {
-        const N = room.players.length;
-        const playerIndex = room.players.findIndex(p => p.id === bot.id);
-
-        let validTargets = room.players.filter(p => p.isAlive && p.id !== bot.id);
-
-        if (panicCard.cardId === 'PANIC_BETWEEN_US') {
-          validTargets = validTargets.filter(p => {
-            const victimIndex = room.players.findIndex(rp => rp.id === p.id);
-            return victimIndex === (playerIndex + 1) % N || victimIndex === (playerIndex - 1 + N) % N;
-          });
-        } else if (panicCard.cardId === 'PANIC_ONE_TWO') {
-          validTargets = validTargets.filter(p => {
-            if (p.isInQuarantine || bot.isInQuarantine) return false;
-            const victimIndex = room.players.findIndex(rp => rp.id === p.id);
-            return victimIndex === (playerIndex + 3) % N || victimIndex === (playerIndex - 3 + N) % N;
-          });
-        } else if (panicCard.cardId === 'PANIC_GET_OUT' || panicCard.cardId === 'PANIC_FRIENDS') {
-          validTargets = validTargets.filter(p => !p.isInQuarantine);
-        }
-
-        if (validTargets.length > 0) {
-          const chosenVictim = validTargets[randomInt(validTargets.length)];
-          this.resolveTargetedPanic(room.roomId, requesterId, bot.id, chosenVictim.id);
-        }
-      }
-    }
+  public checkAndExecuteBotTurn(roomId: string, broadcastCallback: (revealData?: any) => void) {
+    const room = this.roomManager.getRoom(roomId);
+    if (!room) return;
+    this.botAIEngine.checkAndExecuteBotTurn(room, this, broadcastCallback);
   }
 
   // 18. Состояние с анонимизацией (и срыванием масок при GAME_OVER)
   public getSanitizedState(roomId: string, targetPlayerId: string): GameState | null {
-    const room = this.rooms.get(roomId);
+    const room = this.roomManager.getRoom(roomId);
     if (!room) return null;
 
     const requestingPlayer = room.players.find(p => p.id === targetPlayerId);
@@ -918,10 +929,6 @@ export class GameEngine {
       players: sanitizedPlayers,
       deck: Array(room.deck.length).fill(HIDDEN_DECK_CARD)
     };
-  }
-
-  public getRoom(roomId: string): GameState | undefined {
-    return this.rooms.get(roomId);
   }
 }
 

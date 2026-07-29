@@ -31,14 +31,17 @@ export const SOCKET_EVENTS = {
   GAME_STATE_UPDATED: 'game_state_updated',
   REVEAL_EVENT: 'reveal_event',
   GAME_ERROR: 'game_error',
+  TOGGLE_READY: 'toggle_ready',
 
   // События с двоеточием согласно спецификациям эпиков
   ROOM_CREATE: 'room:create',
   ROOM_JOIN: 'room:join',
   ROOM_STATE_UPDATED: 'room:state_updated',
+  ROOM_TOGGLE_READY: 'room:toggle_ready',
   'room:create': 'room:create',
   'room:join': 'room:join',
   'room:state_updated': 'room:state_updated',
+  'room:toggle_ready': 'room:toggle_ready',
   'chat:message': 'chat:message',
 } as const;
 

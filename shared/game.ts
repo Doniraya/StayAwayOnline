@@ -92,6 +92,7 @@ export interface Player {
   isInQuarantine: boolean;
   quarantineTurnsLeft?: number;
   isOnline?: boolean;
+  isReady?: boolean;
 }
 
 // ------ Фазы игры ------

@@ -77,6 +77,21 @@ io.on('connection', (socket) => {
   socket.on(SOCKET_EVENTS.JOIN_ROOM, handleJoinRoomAction);
   socket.on(SOCKET_EVENTS.ROOM_JOIN, handleJoinRoomAction);
 
+  const handleToggleReadyAction = () => {
+    const info = socketMap.get(socket.id);
+    if (!info) return;
+    const { roomId, playerId } = info;
+    const res = gameEngine.toggleReady(roomId, playerId);
+    if (res.success) {
+      broadcastGameState(roomId);
+    } else if (res.error) {
+      socket.emit(SOCKET_EVENTS.GAME_ERROR, { message: res.error });
+    }
+  };
+
+  socket.on(SOCKET_EVENTS.TOGGLE_READY, handleToggleReadyAction);
+  socket.on(SOCKET_EVENTS.ROOM_TOGGLE_READY, handleToggleReadyAction);
+
   socket.on(SOCKET_EVENTS.RECONNECT_USER, ({ roomId, playerId }, callback) => {
     const room = gameEngine.getRoom(roomId);
     if (room) {

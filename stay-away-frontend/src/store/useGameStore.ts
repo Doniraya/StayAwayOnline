@@ -39,6 +39,7 @@ interface GameStoreState {
   // Сокет-действия
   handleCreateRoom: () => void;
   handleJoinRoom: () => void;
+  handleToggleReady: () => void;
   handleAddBot: () => void;
   handleSetBotDelay: (delayMs: number) => void;
   handleStartGame: () => void;
@@ -196,6 +197,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         showToast(res.message || 'Ошибка входа', 'error');
       }
     });
+  },
+
+  handleToggleReady: () => {
+    const { gameState, myPlayerId } = get();
+    if (gameState && myPlayerId) {
+      socket.emit(SOCKET_EVENTS.TOGGLE_READY, { roomId: gameState.roomId, playerId: myPlayerId });
+    }
   },
 
   handleAddBot: () => {
