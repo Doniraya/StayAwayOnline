@@ -494,6 +494,9 @@ export class GameEngine {
 
     this.touchRoom(room);
 
+    const currentPlayer = room.players[room.currentTurnIndex];
+    if (currentPlayer.id !== targetPlayerId) return { success: false, error: 'Не твой ход' };
+
     const player = room.players.find(p => p.id === targetPlayerId);
     if (!player) return { success: false, error: 'Игрок не найден' };
 

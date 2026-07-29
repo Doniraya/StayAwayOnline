@@ -59,26 +59,22 @@ export default function PlayerHand() {
                 illegal
                   ? {}
                   : {
-                      scale: 1.08,
-                      y: -12,
+                      scale: 2.0,
+                      y: -80,
                       zIndex: 9999,
-                      transition: { duration: 0.15, ease: 'easeOut' },
+                      transition: { duration: 0.1, ease: 'easeOut' },
                     }
               }
               onClick={() => !illegal && setSelectedCardId(card.id)}
-              className={`w-[110px] h-[150px] shrink-0 rounded-xl overflow-hidden border-2 shadow-2xl relative cursor-pointer bg-[#161b26] origin-bottom transform-gpu transition-all ${
-                illegal
-                  ? 'opacity-40 grayscale cursor-not-allowed border-[#263042]'
-                  : card.cardId === 'INFECTED'
-                  ? 'border-[#27ae60] shadow-[0_4px_12px_rgba(39,174,96,0.3)]'
-                  : 'border-[#d35400] shadow-[0_4px_12px_rgba(211,84,0,0.3)]'
-              } ${isSelected ? 'ring-4 ring-[#f39c12] -translate-y-4 border-[#f39c12] z-10 shadow-[0_0_20px_#f39c12]' : ''}`}
+              className={`w-24 h-36 md:w-32 md:h-48 shrink-0 rounded-xl overflow-hidden border-2 shadow-2xl relative cursor-pointer bg-slate-950 origin-bottom transform-gpu ${
+                illegal ? 'opacity-40 grayscale cursor-not-allowed border-slate-800' : 'border-slate-700'
+              } ${isSelected ? 'ring-4 ring-amber-400 scale-105 border-amber-400 z-10' : ''}`}
             >
               <img src={card.imageUrl || '/cards/back.png'} alt={card.name} className="w-full h-full object-cover" />
 
               {illegal && (
-                <div className="absolute inset-0 bg-black/75 flex items-center justify-center p-2 text-center">
-                  <span className="bg-[#c0392b] text-white border border-red-400 rounded text-[9px] font-bold px-2 py-1 flex items-center gap-1">
+                <div className="absolute inset-0 bg-black/70 flex items-center justify-center p-2 text-center">
+                  <span className="bg-red-950 text-red-400 border border-red-800 rounded text-[9px] font-bold px-2 py-1 flex items-center gap-1">
                     <Ban className="w-3 h-3" /> Нельзя отдать
                   </span>
                 </div>

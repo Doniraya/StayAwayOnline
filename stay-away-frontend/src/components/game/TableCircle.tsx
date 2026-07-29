@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Users, Lock, Biohazard, Megaphone } from 'lucide-react';
+import { Bot, Users, Lock, Biohazard, Megaphone, Volume2, VolumeX } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
+import { soundManager } from '../../utils/SoundManager';
 
 const DECK_STATS: Record<number, { infected: number; panic: number; flamethrower: number; other: number }> = {
   4: { infected: 8, panic: 4, flamethrower: 2, other: 16 },
@@ -30,6 +32,7 @@ export default function TableCircle() {
   const myPlayerId = useGameStore((s) => s.myPlayerId);
   const controlledPlayerId = useGameStore((s) => s.controlledPlayerId);
   const handleSelectSeat = useGameStore((s) => s.handleSelectSeat);
+  const [muted, setMuted] = useState(soundManager.getMuted());
 
   if (!gameState) return null;
 
@@ -46,6 +49,15 @@ export default function TableCircle() {
 
   return (
     <div className="relative flex-1 flex flex-col items-center justify-center my-2 px-2 md:px-8 w-full">
+      {/* Кнопка включения/выключения звука */}
+      <button
+        onClick={() => setMuted(soundManager.toggleMute())}
+        className="absolute top-0 right-4 md:right-8 z-50 p-2 rounded-xl bg-slate-900/80 border border-slate-700/80 text-slate-300 hover:text-white hover:bg-slate-800 transition backdrop-blur-md shadow-lg"
+        title={muted ? 'Включить звук' : 'Выключить звук'}
+      >
+        {muted ? <VolumeX className="w-5 h-5 text-red-400" /> : <Volume2 className="w-5 h-5 text-emerald-400" />}
+      </button>
+
       {/* Анимированный баннер с последним событием лога (с чётким отступом НАД столиком) */}
       <AnimatePresence mode="wait">
         {lastLog && (
@@ -201,10 +213,10 @@ export default function TableCircle() {
               <div
                 key={`door-${i}`}
                 style={{ left: `calc(50% + ${xPercent}%)`, top: `calc(50% + ${yPercent}%)`, transform: 'translate(-50%, -50%)' }}
-                className="absolute origin-center z-30 bg-[#3e2723] border border-[#d35400] text-[#ffcc80] px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 shadow-lg ring-1 ring-[#d35400]/40"
+                className="absolute origin-center z-30 bg-gradient-to-r from-amber-950 via-[#3d2413] to-amber-950 border-2 border-amber-500 text-amber-200 px-2.5 py-1 rounded-lg text-[10px] font-extrabold flex items-center gap-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.9)] ring-1 ring-amber-400/50"
               >
-                <Lock className="w-3 h-3 text-[#f39c12] shrink-0" />
-                <span className="tracking-wider uppercase font-cinzel">🚪 Заколочено</span>
+                <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="tracking-wider uppercase font-cinzel">ДВЕРЬ</span>
               </div>
             );
           })}
@@ -234,10 +246,10 @@ export default function TableCircle() {
                   onClick={() => isHost && handleSelectSeat(player.id)}
                   className={`relative p-2.5 md:p-3 rounded-xl border flex flex-col items-center w-32 md:w-36 backdrop-blur-md shadow-2xl cursor-pointer transition-all ${
                     isSelectedSeat
-                      ? 'ring-4 ring-amber-400 border-amber-500 scale-105 z-30 bg-[#161b26] shadow-[0_0_25px_rgba(243,156,18,0.5)]'
+                      ? 'ring-4 ring-amber-400 border-amber-500 scale-105 z-30 bg-slate-900/95 shadow-[0_0_25px_rgba(245,158,11,0.5)]'
                       : isCurrentTurn
-                      ? 'bg-[#161b26] border-[#d35400] ring-2 ring-[#f39c12] z-20 turn-pulse shadow-[0_0_20px_#d35400,0_0_8px_#f39c12]'
-                      : 'bg-[#161b26]/90 border-[#263042] hover:border-slate-600 z-10'
+                      ? 'bg-amber-950/90 border-amber-500 ring-2 ring-amber-500/60 z-20 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                      : 'bg-slate-900/85 border-slate-800 hover:border-slate-600 z-10'
                   } ${!player.isAlive ? 'opacity-40 grayscale line-through' : ''}`}
                 >
                   {/* Жёлтый круглый значок с номером хода (1, 2, 3, 4, 5, 6) */}
@@ -245,10 +257,10 @@ export default function TableCircle() {
                     {index + 1}
                   </div>
 
-                  {/* Индикатор Карантина */}
+                  {/* Индикатор Карантина (цепи и замок) */}
                   {player.isInQuarantine && (
-                    <div className="absolute -top-3 right-1 bg-[#c0392b] text-white font-bold text-[9px] px-2 py-0.5 rounded border border-red-400 shadow-md flex items-center gap-0.5 z-40 animate-pulse">
-                      <Biohazard className="w-3 h-3" /> ☣️ Карантин
+                    <div className="absolute -top-3 right-2 bg-amber-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full border border-amber-200 shadow-md flex items-center gap-0.5 z-40 animate-pulse">
+                      <Biohazard className="w-3 h-3" /> КАРАНТИН
                     </div>
                   )}
 

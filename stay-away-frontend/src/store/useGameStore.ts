@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { socket } from '../socket';
 import type { GameState, RevealEventData, ChatMessage } from '../types/game';
 import { SOCKET_EVENTS } from '../types/events';
+import { soundManager } from '../utils/SoundManager';
 
 interface GameStoreState {
   // Игровое состояние
@@ -141,7 +142,24 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     tryReconnect();
 
     const onGameStateUpdated = (state: GameState) => {
+      const prevState = get().gameState;
       set({ gameState: state });
+
+      if (!prevState) return;
+
+      if (state.phase === 'GAME_OVER' && prevState.phase !== 'GAME_OVER') {
+        const myId = get().myPlayerId;
+        const me = state.players.find(p => p.id === myId);
+        const isHumansWin = state.winnerRole === 'HUMANS';
+        const isMyTeamWinner = me?.isAlive && ((isHumansWin && me.role === 'HUMAN') || (!isHumansWin && (me.role === 'THING' || me.role === 'INFECTED')));
+        soundManager.play(isMyTeamWinner ? 'victory' : 'defeat');
+      } else if (state.phase === 'RESPOND' && prevState.phase !== 'RESPOND') {
+        soundManager.play('flamethrower');
+      } else if (state.phase === 'RESOLVE_PANIC' && prevState.phase !== 'RESOLVE_PANIC') {
+        soundManager.play('panic');
+      } else if (state.log.length > prevState.log.length && state.phase !== 'LOBBY') {
+        soundManager.play('card_play');
+      }
     };
 
     const onGameError = ({ message }: { message: string }) => {
@@ -150,6 +168,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     const onRevealEvent = (data: RevealEventData) => {
       set({ revealData: data });
+      if (data.type === 'PANIC_DRAWN') {
+        soundManager.play('panic');
+      } else {
+        soundManager.play('card_play');
+      }
     };
 
     const onKicked = () => {
