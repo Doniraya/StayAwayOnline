@@ -69,9 +69,9 @@ export default function PlayerHand() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="mb-3 w-full max-w-lg bg-stone-900/95 border-2 border-amber-500/80 rounded-xl p-3.5 shadow-2xl backdrop-blur-md text-stone-100 flex items-start gap-3 pointer-events-none z-50"
+            className="absolute bottom-[200px] md:bottom-[230px] left-1/2 -translate-x-1/2 w-[92%] max-w-lg bg-stone-900/95 border-2 border-amber-500/90 rounded-xl p-3 shadow-2xl backdrop-blur-md text-stone-100 flex items-start gap-3 pointer-events-none z-50"
           >
-            <div className="w-12 h-16 shrink-0 rounded-lg overflow-hidden border border-amber-600/60 shadow bg-stone-950">
+            <div className="w-11 h-15 shrink-0 rounded-lg overflow-hidden border border-amber-600/60 shadow bg-stone-950">
               <img
                 src={
                   activeCard.imageUrl ||
@@ -107,7 +107,7 @@ export default function PlayerHand() {
         )}
       </AnimatePresence>
 
-      <div className="flex items-end justify-center h-44 md:h-52 px-4 max-w-full overflow-visible">
+      <div className="flex items-end justify-center h-40 md:h-48 px-4 max-w-full overflow-visible">
         <AnimatePresence mode="popLayout">
           {activePlayer.hand.map((card, index) => {
             const isSelected = card.id === selectedCardId;
@@ -115,8 +115,8 @@ export default function PlayerHand() {
 
             const centerOffset = index - (totalCards - 1) / 2;
             const rotate = isSelected ? 0 : centerOffset * 5;
-            // В спокойном состоянии карты убираются наполовину вниз за нижнюю границу (y: 95px)
-            const baseY = isSelected ? -75 : 95 + Math.abs(centerOffset) * 4;
+            // В спокойном состоянии карты убираются наполовину вниз (y: 70px)
+            const baseY = isSelected ? -20 : 70 + Math.abs(centerOffset) * 4;
             const auraClass = getCardAuraClass(card);
 
             const imageSrc =
@@ -132,18 +132,18 @@ export default function PlayerHand() {
                   opacity: 1,
                   y: baseY,
                   rotate: rotate,
-                  scale: isSelected ? 1.15 : 1,
-                  zIndex: isSelected ? 50 : index + 1,
+                  scale: isSelected ? 1.12 : 1,
+                  zIndex: isSelected ? 40 : index + 1,
                 }}
                 exit={{ opacity: 0, scale: 0.5, y: -60 }}
                 whileHover={
                   illegal
                     ? {}
                     : {
-                        y: -75,
-                        scale: 1.15,
+                        y: -20,
+                        scale: 1.12,
                         rotate: 0,
-                        zIndex: 50,
+                        zIndex: 40,
                         transition: { type: 'spring', stiffness: 350, damping: 22 },
                       }
                 }
@@ -151,8 +151,8 @@ export default function PlayerHand() {
                   illegal
                     ? {}
                     : {
-                        scale: 1.18,
-                        y: -75,
+                        scale: 1.15,
+                        y: -20,
                       }
                 }
                 transition={{ type: 'spring', stiffness: 350, damping: 24 }}
