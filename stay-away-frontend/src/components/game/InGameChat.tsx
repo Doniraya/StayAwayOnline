@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, Send, Radio, ChevronDown, ChevronUp, ScrollText } from 'lucide-react';
+import { MessageSquare, Send, Radio, ChevronDown, ChevronUp, ScrollText, X } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 
 export default function InGameChat() {
   const [inputText, setInputText] = useState('');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'log'>('chat');
+
   const chatMessages = useGameStore((s) => s.chatMessages);
   const handleSendChatMessage = useGameStore((s) => s.handleSendChatMessage);
   const gameState = useGameStore((s) => s.gameState);
@@ -23,17 +25,25 @@ export default function InGameChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     if (chatMessages.length < prevChatCountRef.current) {
       setUnreadCount(0);
-    } else if ((activeTab === 'log' || isCollapsed) && chatMessages.length > prevChatCountRef.current) {
+    } else if (
+      (activeTab === 'log' || isCollapsed || !isMobileOpen) &&
+      chatMessages.length > prevChatCountRef.current
+    ) {
       setUnreadCount((prev) => prev + (chatMessages.length - prevChatCountRef.current));
     }
     prevChatCountRef.current = chatMessages.length;
-  }, [chatMessages, activeTab, isCollapsed]);
+  }, [chatMessages, activeTab, isCollapsed, isMobileOpen]);
 
   const handleTabChange = (tab: 'chat' | 'log') => {
     setActiveTab(tab);
     if (tab === 'chat') {
       setUnreadCount(0);
     }
+  };
+
+  const openMobileChat = () => {
+    setIsMobileOpen(true);
+    setUnreadCount(0);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -48,19 +58,18 @@ export default function InGameChat() {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  return (
+  // Содержимое чата
+  const renderChatBody = () => (
     <div
-      className={`relative z-40 w-full transition-all duration-300 ${
-        isCollapsed ? 'h-12' : 'h-80'
-      } flex flex-col rounded-xl border border-slate-700/60 bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-slate-950 shadow-2xl backdrop-blur-md overflow-hidden border-t-slate-600/50`}
+      className="w-full h-full flex flex-col rounded-xl border border-slate-700/60 bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-slate-950 shadow-2xl backdrop-blur-md overflow-hidden border-t-slate-600/50"
       style={{
         boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
       }}
     >
-      {/* Шапка чата — тёмно-металлический блок */}
-      <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-slate-800/90 via-slate-900/90 to-slate-800/90 border-b border-slate-700/50 cursor-pointer select-none">
+      {/* Шапка чата */}
+      <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-slate-800/90 via-slate-900/90 to-slate-800/90 border-b border-slate-700/50 select-none">
         <div
-          className="flex items-center gap-2 text-slate-200 hover:text-amber-400 transition"
+          className="flex items-center gap-2 text-slate-200 hover:text-amber-400 transition cursor-pointer"
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
           <div className="relative">
@@ -78,7 +87,7 @@ export default function InGameChat() {
         </div>
 
         <div className="flex items-center gap-1">
-          {/* Табы Переключения */}
+          {/* Табы */}
           {!isCollapsed && (
             <div className="flex bg-slate-950/80 rounded p-0.5 border border-slate-800 mr-1">
               <button
@@ -112,21 +121,31 @@ export default function InGameChat() {
             </div>
           )}
 
+          {/* Кнопка свертывания для десктопа */}
           <button
             type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="text-slate-400 hover:text-slate-100 p-1 rounded transition"
+            className="hidden lg:block text-slate-400 hover:text-slate-100 p-1 rounded transition"
             title={isCollapsed ? 'Развернуть чат' : 'Свернуть чат'}
           >
             {isCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
+
+          {/* Кнопка закрытия для мобильных */}
+          <button
+            type="button"
+            onClick={() => setIsMobileOpen(false)}
+            className="lg:hidden text-slate-400 hover:text-slate-100 p-1 rounded transition"
+            title="Закрыть"
+          >
+            <X className="w-5 h-5 text-amber-400" />
+          </button>
         </div>
       </div>
 
-      {/* Основная часть при развернутом состоянии */}
+      {/* Содержимое развернутого чата */}
       {!isCollapsed && (
         <>
-          {/* Содержимое чата или лога */}
           <div className="flex-1 p-2.5 overflow-y-auto space-y-2 text-xs scrollbar-thin scrollbar-thumb-slate-700">
             {activeTab === 'chat' ? (
               chatMessages.length === 0 ? (
@@ -161,28 +180,24 @@ export default function InGameChat() {
                   );
                 })
               )
-            ) : (
-              /* Системный лог */
-              gameState?.log && gameState.log.length > 0 ? (
-                gameState.log.map((logEntry, idx) => (
-                  <div
-                    key={idx}
-                    className="p-1.5 rounded bg-slate-900/60 border border-slate-800/80 text-[11px] text-slate-300 font-mono flex items-start gap-1.5"
-                  >
-                    <span className="text-amber-500 font-bold select-none">•</span>
-                    <span>{logEntry}</span>
-                  </div>
-                ))
-              ) : (
-                <div className="h-full flex items-center justify-center text-slate-500 italic text-[11px]">
-                  Лог событий пуст
+            ) : gameState?.log && gameState.log.length > 0 ? (
+              gameState.log.map((logEntry, idx) => (
+                <div
+                  key={idx}
+                  className="p-1.5 rounded bg-slate-900/60 border border-slate-800/80 text-[11px] text-slate-300 font-mono flex items-start gap-1.5"
+                >
+                  <span className="text-amber-500 font-bold select-none">•</span>
+                  <span>{logEntry}</span>
                 </div>
-              )
+              ))
+            ) : (
+              <div className="h-full flex items-center justify-center text-slate-500 italic text-[11px]">
+                Лог событий пуст
+              </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Форма ввода сообщения */}
           <form
             onSubmit={handleSubmit}
             className="p-2 bg-slate-950/90 border-t border-slate-800/80 flex items-center gap-2"
@@ -206,5 +221,52 @@ export default function InGameChat() {
         </>
       )}
     </div>
+  );
+
+  return (
+    <>
+      {/* 1. Плавающая кнопка-триггер для мобильных устройств (< 1024px) */}
+      <div className="fixed bottom-4 left-4 z-40 lg:hidden">
+        <button
+          type="button"
+          onClick={openMobileChat}
+          className="relative p-3 rounded-full bg-slate-900/90 border border-amber-500/50 text-amber-400 shadow-2xl backdrop-blur-md active:scale-95 transition flex items-center justify-center"
+          title="Открыть чат радиоэфира"
+        >
+          <Radio className="w-6 h-6 animate-pulse text-amber-400" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-extrabold text-[10px] px-1.5 py-0.5 rounded-full border border-amber-300 shadow animate-bounce">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* 2. Мобильная выезжающая шторка (Bottom Sheet Drawer) с оверлеем-затемнением */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col justify-end p-2 lg:hidden transition-all duration-300"
+          onClick={() => setIsMobileOpen(false)}
+        >
+          <div
+            className="w-full h-[75vh] max-h-[500px] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Полоса-индикатор перетаскивания */}
+            <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-2 opacity-60" />
+            {renderChatBody()}
+          </div>
+        </div>
+      )}
+
+      {/* 3. Фиксированная боковая панель для десктопа (≥ 1024px) */}
+      <div
+        className={`hidden lg:flex relative z-40 w-full transition-all duration-300 ${
+          isCollapsed ? 'h-12' : 'h-80'
+        } flex-col`}
+      >
+        {renderChatBody()}
+      </div>
+    </>
   );
 }

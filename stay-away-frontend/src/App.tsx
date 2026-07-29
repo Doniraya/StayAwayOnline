@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useGameStore } from './store/useGameStore';
 import LoginScreen from './components/screens/LoginScreen';
 import LobbyScreen from './components/screens/LobbyScreen';
-import GameTable from './components/screens/GameTable';
+import GameScreen from './components/screens/GameScreen';
 import { Toast } from './components/game/Toast';
 
 export default function App() {
@@ -22,9 +22,8 @@ export default function App() {
       ) : gameState.phase === 'LOBBY' ? (
         <LobbyScreen />
       ) : (
-        <GameTable />
+        <GameScreen />
       )}
     </>
   );
 }
-
