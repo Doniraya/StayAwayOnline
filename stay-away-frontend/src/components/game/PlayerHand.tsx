@@ -61,14 +61,15 @@ export default function PlayerHand() {
 
   return (
     <div className="relative z-40 flex flex-col items-center justify-end max-w-full overflow-visible select-none pb-2">
-      {/* Крупный Инспектор Кнопка/Плашка при наведении на карту */}
+      {/* Стилизованное информационное окно карты при наведении или выборе */}
       <AnimatePresence>
         {activeCard && (
           <motion.div
             initial={{ opacity: 0, y: 15, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="mb-3 w-full max-w-lg bg-stone-900/95 border-2 border-amber-500/80 rounded-xl p-3.5 shadow-2xl backdrop-blur-md text-stone-100 flex items-start gap-3 pointer-events-none"
+            transition={{ duration: 0.15 }}
+            className="mb-3 w-full max-w-lg bg-stone-900/95 border-2 border-amber-500/80 rounded-xl p-3.5 shadow-2xl backdrop-blur-md text-stone-100 flex items-start gap-3 pointer-events-none z-50"
           >
             <div className="w-12 h-16 shrink-0 rounded-lg overflow-hidden border border-amber-600/60 shadow bg-stone-950">
               <img
@@ -88,7 +89,13 @@ export default function PlayerHand() {
                 <h4 className="text-sm md:text-base font-extrabold text-amber-400 tracking-wide uppercase truncate">
                   {activeCard.name}
                 </h4>
-                <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded bg-stone-800 border border-stone-700 text-stone-300">
+                <span
+                  className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded border ${
+                    activeCard.type === 'PANIC'
+                      ? 'bg-red-950/80 border-red-700 text-red-300'
+                      : 'bg-amber-950/80 border-amber-700 text-amber-300'
+                  }`}
+                >
                   {activeCard.type === 'PANIC' ? 'ПАНИКА' : 'СОБЫТИЕ'}
                 </span>
               </div>
@@ -107,8 +114,9 @@ export default function PlayerHand() {
             const illegal = isIllegalTradeCard(card);
 
             const centerOffset = index - (totalCards - 1) / 2;
-            const rotate = isSelected ? 0 : centerOffset * 6;
-            const baseY = isSelected ? -45 : Math.abs(centerOffset) * 8;
+            const rotate = isSelected ? 0 : centerOffset * 5;
+            // В спокойном состоянии карты убираются наполовину вниз за нижнюю границу (y: 95px)
+            const baseY = isSelected ? -75 : 95 + Math.abs(centerOffset) * 4;
             const auraClass = getCardAuraClass(card);
 
             const imageSrc =
@@ -119,37 +127,37 @@ export default function PlayerHand() {
               <motion.div
                 key={card.id}
                 layout
-                initial={{ opacity: 0, y: 80, rotate: 0 }}
+                initial={{ opacity: 0, y: 120, rotate: 0 }}
                 animate={{
                   opacity: 1,
                   y: baseY,
                   rotate: rotate,
-                  scale: isSelected ? 1.12 : 1,
-                  zIndex: isSelected ? 30 : index + 1,
+                  scale: isSelected ? 1.15 : 1,
+                  zIndex: isSelected ? 50 : index + 1,
                 }}
                 exit={{ opacity: 0, scale: 0.5, y: -60 }}
                 whileHover={
                   illegal
                     ? {}
                     : {
-                        y: -45,
-                        scale: 1.12,
+                        y: -75,
+                        scale: 1.15,
                         rotate: 0,
-                        zIndex: 40,
-                        transition: { type: 'spring', stiffness: 300, damping: 20 },
+                        zIndex: 50,
+                        transition: { type: 'spring', stiffness: 350, damping: 22 },
                       }
                 }
                 whileTap={
                   illegal
                     ? {}
                     : {
-                        scale: 1.15,
-                        y: -50,
+                        scale: 1.18,
+                        y: -75,
                       }
                 }
-                transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 24 }}
                 drag={illegal ? false : 'y'}
-                dragConstraints={{ top: -120, bottom: 0 }}
+                dragConstraints={{ top: -150, bottom: 0 }}
                 dragElastic={0.2}
                 onMouseEnter={() => setHoveredCard(card)}
                 onMouseLeave={() => setHoveredCard(null)}
