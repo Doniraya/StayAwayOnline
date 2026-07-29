@@ -1,4 +1,4 @@
-import { Trophy, Skull, Sparkles, Bot, Users, Flame, Biohazard, RotateCcw } from 'lucide-react';
+import { Trophy, Skull, Sparkles, Bot, Users, Flame, Biohazard, RotateCcw, LogOut } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import BaseModal from './BaseModal';
 
@@ -8,8 +8,8 @@ export default function VictoryModal() {
   const handleRestartGame = useGameStore((s) => s.handleRestartGame);
   const handleLeaveRoom = useGameStore((s) => s.handleLeaveRoom);
 
-  const isOpen = Boolean(gameState && gameState.phase === 'GAME_OVER');
-  if (!isOpen || !gameState) return null;
+  const isOpen = Boolean(gameState && gameState.phase === 'GAME_OVER' && gameState.winnerRole);
+  if (!isOpen || !gameState || !gameState.winnerRole) return null;
 
   const me = gameState.players.find((p) => p.id === myPlayerId);
   const isHost = me?.isHost ?? false;
@@ -101,7 +101,7 @@ export default function VictoryModal() {
         onClick={handleLeaveRoom}
         className="w-full mt-2 bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2"
       >
-        <RotateCcw className="w-5 h-5" /> ВЫЙТИ ИЗ КОМНАТЫ
+        <LogOut className="w-5 h-5" /> ВЫЙТИ ИЗ КОМНАТЫ
       </button>
     </BaseModal>
   );

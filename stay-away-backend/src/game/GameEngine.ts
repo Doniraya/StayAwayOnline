@@ -309,10 +309,14 @@ export class GameEngine {
   // 7. Проверка условий победы
   private checkVictory(room: GameState): boolean {
     const thing = room.players.find(p => p.role === 'THING');
-    
-    if (thing && !thing.isAlive) {
+
+    if (!thing || !thing.isAlive) {
       room.phase = 'GAME_OVER';
       room.winnerRole = 'HUMANS';
+      room.pendingTrade = undefined;
+      room.pendingDefense = undefined;
+      room.pendingPanic = undefined;
+      room.pendingPersistence = undefined;
       room.log.push('🎉 НЕЧТО СГОРЕЛО! ЛЮДИ ПОБЕДИЛИ!');
       return true;
     }
@@ -323,6 +327,10 @@ export class GameEngine {
     if (livingHumans.length === 0) {
       room.phase = 'GAME_OVER';
       room.winnerRole = 'THING';
+      room.pendingTrade = undefined;
+      room.pendingDefense = undefined;
+      room.pendingPanic = undefined;
+      room.pendingPersistence = undefined;
       room.log.push('👾 НЕЧТО И ЗАРАЖЕННЫЕ ЗАХВАТИЛИ СТАНЦИЮ! ПОБЕДА МОНСТРА!');
       return true;
     }
