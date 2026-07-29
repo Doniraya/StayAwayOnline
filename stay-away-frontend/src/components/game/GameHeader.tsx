@@ -2,20 +2,7 @@ import { Flame, Eye, Bot, Users, ShieldCheck, Biohazard } from 'lucide-react';
 import { GITHUB_REPO_URL, GithubIcon } from '../Github';
 import { useGameStore } from '../../store/useGameStore';
 
-/**
- * Русские наименования фаз игры
- */
-const PHASE_NAMES: Record<string, string> = {
-  DRAW: 'ФАЗА: ДОБОР КАРТЫ',
-  PLAY_OR_DISCARD: 'ФАЗА: ХОД ИЛИ СБРОС',
-  TRADE: 'ФАЗА: ПРЕДЛОЖЕНИЕ ОБМЕНА',
-  TRADE_ACCEPT: 'ФАЗА: ПРИНЯТИЕ ОБМЕНА',
-  RESPOND: 'ФАЗА: ЗАЩИТА ОТ АТАКИ',
-  RESOLVE_PANIC: 'ФАЗА: РАЗРЕШЕНИЕ ПАНИКИ',
-  RESOLVE_PERSISTENCE: 'ФАЗА: ВЫБОР КАРТЫ УПОРСТВА',
-  GAME_OVER: 'ИГРА ЗАВЕРШЕНА',
-  LOBBY: 'В ЛОББИ',
-};
+
 
 /**
  * Компонент GameHeader — Верхняя хоррор-шапка игры.
@@ -48,7 +35,33 @@ export default function GameHeader() {
     return <span className="font-bold text-sm text-slate-100">{initial}</span>;
   };
 
-  const currentPhaseTitle = PHASE_NAMES[gameState.phase] || `ФАЗА: ${gameState.phase}`;
+  // Вычисление подсказки шага хода
+  const getStepPrompt = () => {
+    switch (gameState.phase) {
+      case 'DRAW':
+        return { step: '1 из 3', title: 'Добор карты', text: 'Возьмите 1 карту из общей колоды' };
+      case 'PLAY_OR_DISCARD':
+        return { step: '2 из 3', title: 'Ход или Сброс', text: 'Сыграйте 1 карту события с руки или сбросьте 1 карту' };
+      case 'RESPOND':
+        return { step: '2 из 3', title: 'Защита от атаки', text: 'Выберите карту защиты от атаки или примите эффект' };
+      case 'RESOLVE_PANIC':
+        return { step: '2 из 3', title: 'Карта Паники', text: 'Выполните обязательное действие карты Паники' };
+      case 'RESOLVE_PERSISTENCE':
+        return { step: '2 из 3', title: 'Упорство', text: 'Выберите 1 из 3 взятых карт события' };
+      case 'TRADE':
+        return { step: '3 из 3', title: 'Обмен картами', text: 'Выберите 1 карту с руки и предложите её соседу' };
+      case 'TRADE_ACCEPT':
+        return { step: '3 из 3', title: 'Ответный обмен', text: 'Выберите 1 карту с руки в ответ на предложение обмена' };
+      case 'GAME_OVER':
+        return { step: 'ИТОГ', title: 'Игра завершена', text: 'Все роли и карты раскрыты' };
+      default:
+        return { step: '—', title: 'Ожидание', text: 'Ожидайте действий игроков' };
+    }
+  };
+
+  const stepPrompt = getStepPrompt();
+  const activeCount = gameState.players.filter(p => p.isOnline !== false).length;
+  const totalCount = gameState.players.length;
 
   return (
     <div className="w-full flex flex-col gap-2 relative z-50 mb-1 select-none shrink-0">
@@ -71,40 +84,42 @@ export default function GameHeader() {
               THE THING: STAY AWAY!
             </h1>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[10px] uppercase font-semibold tracking-widest text-slate-400 bg-slate-900/90 px-2 py-0.5 rounded border border-slate-800">
-                КОМНАТА: <strong className="text-amber-400">{gameState.roomId}</strong>
+              <span className="text-[10px] uppercase font-semibold tracking-widest text-slate-400 bg-slate-900/90 px-2 py-0.5 rounded border border-slate-800 flex items-center gap-1.5">
+                КОМНАТА: <strong className="text-amber-400 font-mono text-xs">{gameState.roomId}</strong>
+              </span>
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-900/90 px-2 py-0.5 rounded border border-slate-800 flex items-center gap-1">
+                <Users className="w-3 h-3 text-cyan-400" /> {activeCount}/{totalCount}
               </span>
             </div>
           </div>
         </div>
 
-        {/* 2. ПО ЦЕНТРУ: Крупная русская надпись фазы и плашка ХОД ИГРОКА */}
-        <div className="flex-1 min-w-[280px] max-w-md mx-auto flex flex-col items-center justify-center gap-1">
-          {/* Крупная русская надпись Фазы */}
-          <div className="px-4 py-1 rounded-full bg-gradient-to-r from-red-950/90 via-rose-900/90 to-red-950/90 border border-rose-600/60 shadow-[0_0_15px_rgba(225,29,72,0.3)] flex items-center justify-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-            <span className="text-sm md:text-base font-black tracking-wider text-rose-300 uppercase font-special-elite drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-center">
-              {currentPhaseTitle}
+        {/* 2. ПО ЦЕНТРУ: Пошаговая плашка подсказок [Шаг X из 3] и плашка ХОД ИГРОКА */}
+        <div className="flex-1 min-w-[280px] max-w-md mx-auto flex flex-col items-center justify-center gap-1.5">
+          {/* Пошаговая плашка подсказок в ржаво-янтарном стиле */}
+          <div className="w-full px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-950/90 via-slate-900/95 to-amber-950/90 border border-amber-600/60 shadow-[0_0_15px_rgba(245,158,11,0.25)] flex items-center justify-between gap-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-950 bg-amber-500 px-2 py-0.5 rounded-md shrink-0 shadow-md">
+              [Шаг {stepPrompt.step}]
+            </span>
+            <span className="text-xs font-semibold text-amber-200 truncate text-center">
+              {stepPrompt.text}
             </span>
           </div>
 
           {/* Металлическая плашка ХОД ИГРОКА */}
-          <div className="w-full bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-700/80 rounded-xl px-3 py-1.5 shadow-2xl relative overflow-hidden border-metal flex items-center justify-center">
+          <div className="w-full bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-700/80 rounded-xl px-3 py-1 shadow-2xl relative overflow-hidden border-metal flex items-center justify-center">
             {/* Заклёпки по углам плашки */}
             <span className="absolute top-1 left-1.5 w-1.5 h-1.5 rounded-full bg-slate-400 shadow-inner border border-slate-600 opacity-70" />
             <span className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-slate-400 shadow-inner border border-slate-600 opacity-70" />
             <span className="absolute bottom-1 left-1.5 w-1.5 h-1.5 rounded-full bg-slate-400 shadow-inner border border-slate-600 opacity-70" />
             <span className="absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-slate-400 shadow-inner border border-slate-600 opacity-70" />
 
-            {/* Анимированный металлический блик */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_3s_infinite]" />
-
             <div className="flex items-center gap-2 overflow-hidden z-10">
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wide shrink-0">
-                ХОД ИГРОКА:
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide shrink-0">
+                ХОД:
               </span>
-              <span className="text-sm font-extrabold text-amber-400 truncate tracking-wide glow-lamp-text">
+              <span className="text-xs font-extrabold text-amber-400 truncate tracking-wide glow-lamp-text">
                 {currentTurnPlayer?.name || 'ИГРОК'}
               </span>
             </div>
@@ -136,15 +151,17 @@ export default function GameHeader() {
             {/* Текст Роли */}
             <div className="flex flex-col">
               <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
-                {activePlayer?.name}
+                {activePlayer?.name || 'ЗРИТЕЛЬ'}
               </span>
 
-              {activePlayer?.role === 'THING' ? (
+              {!activePlayer ? (
+                <span className="text-xs font-bold text-slate-500 uppercase">ЗРИТЕЛЬ</span>
+              ) : activePlayer.role === 'THING' ? (
                 <div className="flex items-center gap-1 text-xs font-black text-red-500 glow-lamp-text tracking-wider uppercase">
                   <Flame className="w-3.5 h-3.5 text-red-500 animate-pulse" />
                   <span>РОЛЬ: НЕЧТО</span>
                 </div>
-              ) : activePlayer?.role === 'INFECTED' ? (
+              ) : activePlayer.role === 'INFECTED' ? (
                 <div className="flex items-center gap-1 text-xs font-black text-emerald-400 tracking-wider uppercase">
                   <Biohazard className="w-3.5 h-3.5 text-emerald-400" />
                   <span>РОЛЬ: ЗАРАЖЁН</span>
