@@ -53,22 +53,30 @@ export default function PlayerHand() {
             <motion.div
               key={card.id}
               initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0, zIndex: isSelected ? 10 : 1 }}
+              animate={{ opacity: 1, y: 0, zIndex: isSelected ? 30 : 1 }}
               exit={{ opacity: 0, scale: 0.5, y: -50 }}
               whileHover={
                 illegal
                   ? {}
                   : {
-                      scale: 2.0,
-                      y: -80,
+                      scale: 1.4,
+                      y: -40,
                       zIndex: 9999,
-                      transition: { duration: 0.1, ease: 'easeOut' },
+                      transition: { duration: 0.12, ease: 'easeOut' },
                     }
               }
               onClick={() => !illegal && setSelectedCardId(card.id)}
-              className={`w-24 h-36 md:w-32 md:h-48 shrink-0 rounded-xl overflow-hidden border-2 shadow-2xl relative cursor-pointer bg-slate-950 origin-bottom transform-gpu ${
-                illegal ? 'opacity-40 grayscale cursor-not-allowed border-slate-800' : 'border-slate-700'
-              } ${isSelected ? 'ring-4 ring-amber-400 scale-105 border-amber-400 z-10' : ''}`}
+              className={`w-24 h-36 md:w-32 md:h-48 shrink-0 rounded-xl overflow-hidden border-2 shadow-2xl relative cursor-pointer bg-slate-950 origin-bottom transform-gpu transition-shadow ${
+                illegal
+                  ? 'opacity-40 grayscale cursor-not-allowed border-slate-800'
+                  : card.cardId === 'THING'
+                  ? 'border-red-600 shadow-[0_0_12px_rgba(220,38,38,0.5)]'
+                  : card.cardId === 'INFECTED'
+                  ? 'border-emerald-500 shadow-[0_0_12px_rgba(39,174,96,0.4)]'
+                  : card.type === 'PANIC'
+                  ? 'border-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
+                  : 'border-amber-600/80 shadow-[0_0_12px_rgba(211,84,0,0.35)]'
+              } ${isSelected && !illegal ? 'ring-4 ring-amber-400 border-amber-400 scale-105 shadow-[0_0_20px_#f39c12] z-30' : ''}`}
             >
               <img src={card.imageUrl || '/cards/back.png'} alt={card.name} className="w-full h-full object-cover" />
 

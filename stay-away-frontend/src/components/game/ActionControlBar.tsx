@@ -43,7 +43,11 @@ export default function ActionControlBar() {
 
   const isTargetRequired = selectedCard && TARGET_REQUIRED_CARDS.includes(selectedCard.cardId);
   const isDoorRequired = selectedCard && selectedCard.cardId === 'BARRED_DOOR';
-  const isPlayDisabled = (isTargetRequired && !targetVictimId) || (isDoorRequired && doorIndex === null);
+  const isPlayDisabled =
+    !selectedCard ||
+    ['THING', 'INFECTED'].includes(selectedCard.cardId) ||
+    (isTargetRequired && !targetVictimId) ||
+    (isDoorRequired && doorIndex === null);
 
   const hasNoThanks = activePlayer?.hand.some((c) => c.cardId === 'NO_THANKS');
   const hasFear = activePlayer?.hand.some((c) => c.cardId === 'FEAR');
@@ -128,24 +132,24 @@ export default function ActionControlBar() {
           {gameState.phase === 'DRAW' && (
             <button
               onClick={handleDrawCard}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 font-bold px-6 py-2 rounded-lg transition shadow-lg"
+              className="w-full bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-700 hover:from-emerald-600 hover:to-teal-600 font-extrabold px-6 py-2.5 rounded-xl transition shadow-xl border border-emerald-400/40 text-emerald-100 flex items-center justify-center gap-2"
             >
-              Взять карту из колоды ({activePlayer?.name})
+              🎴 Взять карту из колоды ({activePlayer?.name})
             </button>
           )}
 
           {gameState.phase === 'PLAY_OR_DISCARD' && selectedCardId && (
-            <div className="flex flex-col md:flex-row gap-2 w-full">
+            <div className="flex flex-col md:flex-row gap-3 w-full">
               <button
                 onClick={handlePlayCard}
                 disabled={isPlayDisabled}
-                className="w-full bg-red-600 hover:bg-red-500 font-bold px-5 py-2 rounded-lg transition shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-red-700 via-rose-600 to-amber-700 hover:from-red-600 hover:to-amber-600 font-extrabold px-5 py-2.5 rounded-xl transition shadow-xl border border-rose-500/40 text-rose-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 🔥 Сыграть действие карты
               </button>
               <button
                 onClick={handleDiscardCard}
-                className="w-full bg-amber-600 hover:bg-amber-500 font-bold px-5 py-2 rounded-lg transition shadow-lg"
+                className="w-full bg-gradient-to-r from-amber-700 via-amber-600 to-yellow-700 hover:from-amber-600 hover:to-yellow-600 font-extrabold px-5 py-2.5 rounded-xl transition shadow-xl border border-amber-400/40 text-amber-100 flex items-center justify-center gap-2"
               >
                 🗑️ Просто сбросить карту
               </button>
@@ -155,9 +159,9 @@ export default function ActionControlBar() {
           {gameState.phase === 'TRADE' && selectedCardId && (
             <button
               onClick={handleOfferTrade}
-              className="w-full bg-blue-600 hover:bg-blue-500 font-bold px-6 py-2 rounded-lg transition shadow-lg"
+              className="w-full bg-gradient-to-r from-cyan-700 via-blue-600 to-indigo-700 hover:from-cyan-600 hover:to-indigo-600 font-extrabold px-6 py-2.5 rounded-xl transition shadow-xl border border-cyan-400/40 text-cyan-100 flex items-center justify-center gap-2"
             >
-              Предложить эту карту на обмен
+              🤝 Предложить эту карту на обмен
             </button>
           )}
         </div>
