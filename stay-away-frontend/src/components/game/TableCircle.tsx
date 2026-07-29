@@ -189,7 +189,7 @@ export default function TableCircle() {
 
           {/* Указатель хода */}
           <motion.div
-            animate={{ rotate: (gameState.currentTurnIndex / gameState.players.length) * 360 * gameState.direction }}
+            animate={{ rotate: gameState.players.length ? (gameState.currentTurnIndex / gameState.players.length) * 360 * gameState.direction : 0 }}
             transition={{ type: 'spring', stiffness: 60, damping: 15 }}
             className="absolute top-1/2 left-1/2 w-64 h-64 -mt-32 -ml-32 rounded-full border-2 border-dashed border-amber-500/25 pointer-events-none flex justify-center z-10"
           >
@@ -200,12 +200,12 @@ export default function TableCircle() {
 
           {/* Заколоченные двери (засовы / деревянные доски) */}
           {gameState.players.map((_, i) => {
-            if (!gameState.barredDoors[i]) return null;
-            const N = gameState.players.length;
+            if (!gameState.barredDoors?.[i]) return null;
+            const N = gameState.players.length || 1;
             const angle = ((i + 0.5) / N) * 2 * Math.PI - Math.PI / 2;
 
-            const radiusX = 43;
-            const radiusY = 43;
+            const radiusX = 44;
+            const radiusY = 40;
             const xPercent = Math.cos(angle) * radiusX;
             const yPercent = Math.sin(angle) * radiusY;
 
@@ -223,9 +223,10 @@ export default function TableCircle() {
 
           {/* Прямоугольные плашки игроков по кругу стола */}
           {gameState.players.map((player, index) => {
-            const angle = (index / gameState.players.length) * 2 * Math.PI - Math.PI / 2;
-            const radiusX = 43;
-            const radiusY = 43;
+            const N = gameState.players.length || 1;
+            const angle = (index / N) * 2 * Math.PI - Math.PI / 2;
+            const radiusX = 44;
+            const radiusY = 40;
             const xPercent = Math.cos(angle) * radiusX;
             const yPercent = Math.sin(angle) * radiusY;
 
@@ -244,11 +245,13 @@ export default function TableCircle() {
                   animate={{ opacity: 1, scale: 1 }}
                   whileHover={!isSelectedSeat && player.isAlive ? { scale: 1.05 } : {}}
                   onClick={() => isHost && handleSelectSeat(player.id)}
-                  className={`relative p-2.5 md:p-3 rounded-xl border flex flex-col items-center w-32 md:w-36 backdrop-blur-md shadow-2xl cursor-pointer transition-all ${
+                  className={`relative p-2.5 md:p-3 rounded-xl border flex flex-col items-center w-32 md:w-36 backdrop-blur-md shadow-2xl transition-all ${
+                    isHost ? 'cursor-pointer' : 'cursor-default'
+                  } ${
                     isSelectedSeat
                       ? 'ring-4 ring-amber-400 border-amber-500 scale-105 z-30 bg-slate-900/95 shadow-[0_0_25px_rgba(245,158,11,0.5)]'
                       : isCurrentTurn
-                      ? 'bg-amber-950/90 border-amber-500 ring-2 ring-amber-500/60 z-20 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                      ? 'bg-amber-950/90 border-amber-500 ring-2 ring-amber-500/80 z-20 shadow-[0_0_20px_#d35400]'
                       : 'bg-slate-900/85 border-slate-800 hover:border-slate-600 z-10'
                   } ${!player.isAlive ? 'opacity-40 grayscale line-through' : ''}`}
                 >
@@ -276,7 +279,7 @@ export default function TableCircle() {
 
                   {/* Количество карт */}
                   <span className="text-[10px] text-amber-300/80 font-medium mt-0.5">
-                    🎴 Карт: <strong className="text-amber-200">{player.hand.length}</strong>
+                    🎴 Карт: <strong className="text-amber-200">{player.hand?.length ?? 0}</strong>
                   </span>
                 </motion.div>
               </div>
