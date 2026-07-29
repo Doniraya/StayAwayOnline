@@ -92,22 +92,35 @@ io.on('connection', (socket) => {
   socket.on(SOCKET_EVENTS.TOGGLE_READY, handleToggleReadyAction);
   socket.on(SOCKET_EVENTS.ROOM_TOGGLE_READY, handleToggleReadyAction);
 
-  socket.on(SOCKET_EVENTS.RECONNECT_USER, ({ roomId, playerId }, callback) => {
-    const room = gameEngine.getRoom(roomId);
+  const handleReconnectAction = (payload: any, callback?: (res: { success: boolean; error?: string }) => void) => {
+    const { roomId, playerId } = payload || {};
+    const cleanRoomId = roomId ? String(roomId).trim().toUpperCase() : '';
+    const cleanPlayerId = playerId ? String(playerId).trim() : '';
+
+    const room = gameEngine.getRoom(cleanRoomId);
     if (room) {
-      const player = room.players.find(p => p.id === playerId);
+      const player = room.players.find(p => p.id === cleanPlayerId);
       if (player) {
         player.isOnline = true;
-        socket.join(roomId);
-        socket.join(playerId);
-        socketMap.set(socket.id, { roomId, playerId });
-        callback({ success: true });
-        broadcastGameState(roomId);
+        player.isBot = false;
+        socket.join(cleanRoomId);
+        socket.join(cleanPlayerId);
+        socketMap.set(socket.id, { roomId: cleanRoomId, playerId: cleanPlayerId });
+        if (typeof callback === 'function') {
+          callback({ success: true });
+        }
+        broadcastGameState(cleanRoomId);
         return;
       }
     }
-    callback({ success: false });
-  });
+    if (typeof callback === 'function') {
+      callback({ success: false, error: 'Комната или игрок не найдены' });
+    }
+  };
+
+  socket.on(SOCKET_EVENTS.RECONNECT_USER, handleReconnectAction);
+  socket.on(SOCKET_EVENTS.ROOM_RECONNECT, handleReconnectAction);
+  socket.on('room:reconnect', handleReconnectAction);
 
   socket.on(SOCKET_EVENTS.LEAVE_ROOM, ({ roomId, playerId }) => {
     const info = socketMap.get(socket.id);

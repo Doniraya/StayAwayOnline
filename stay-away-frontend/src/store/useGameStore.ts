@@ -117,21 +117,28 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
     } catch {}
 
-    const savedSession = localStorage.getItem('stayAwaySession');
-    if (savedSession) {
-      try {
-        const { roomId, playerId, playerName } = JSON.parse(savedSession);
-        socket.emit(SOCKET_EVENTS.RECONNECT_USER, { roomId, playerId }, (res: { success: boolean }) => {
-          if (res.success) {
-            set({ myPlayerId: playerId, controlledPlayerId: playerId, playerName });
-          } else {
-            localStorage.removeItem('stayAwaySession');
-          }
-        });
-      } catch {
-        localStorage.removeItem('stayAwaySession');
+    const tryReconnect = () => {
+      const savedSession = sessionStorage.getItem('stayAwaySession') || localStorage.getItem('stayAwaySession');
+      if (savedSession) {
+        try {
+          const { roomId, playerId, playerName } = JSON.parse(savedSession);
+          socket.emit(SOCKET_EVENTS.ROOM_RECONNECT, { roomId, playerId }, (res: { success: boolean; error?: string }) => {
+            if (res.success) {
+              set({ myPlayerId: playerId, controlledPlayerId: playerId, playerName: playerName || get().playerName });
+            } else {
+              sessionStorage.removeItem('stayAwaySession');
+              localStorage.removeItem('stayAwaySession');
+              if (res.error) get().showToast(res.error, 'error');
+            }
+          });
+        } catch {
+          sessionStorage.removeItem('stayAwaySession');
+          localStorage.removeItem('stayAwaySession');
+        }
       }
-    }
+    };
+
+    tryReconnect();
 
     const onGameStateUpdated = (state: GameState) => {
       set({ gameState: state });
@@ -147,6 +154,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     const onKicked = () => {
       get().showToast('Вас исключили из комнаты.', 'info');
+      sessionStorage.removeItem('stayAwaySession');
       localStorage.removeItem('stayAwaySession');
       set({
         gameState: null,
@@ -184,7 +192,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     socket.emit(SOCKET_EVENTS.CREATE_ROOM, { playerName }, (res: { success: boolean; roomId: string; playerId: string }) => {
       if (res.success) {
         set({ myPlayerId: res.playerId, controlledPlayerId: res.playerId });
-        localStorage.setItem('stayAwaySession', JSON.stringify({ roomId: res.roomId, playerId: res.playerId, playerName }));
+        const sessionData = JSON.stringify({ roomId: res.roomId, playerId: res.playerId, playerName });
+        sessionStorage.setItem('stayAwaySession', sessionData);
+        localStorage.setItem('stayAwaySession', sessionData);
       }
     });
   },
@@ -195,7 +205,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     socket.emit(SOCKET_EVENTS.JOIN_ROOM, { roomId: roomCodeInput.toUpperCase(), playerName }, (res: { success: boolean; playerId?: string; message?: string }) => {
       if (res.success && res.playerId) {
         set({ myPlayerId: res.playerId, controlledPlayerId: res.playerId });
-        localStorage.setItem('stayAwaySession', JSON.stringify({ roomId: roomCodeInput.toUpperCase(), playerId: res.playerId, playerName }));
+        const sessionData = JSON.stringify({ roomId: roomCodeInput.toUpperCase(), playerId: res.playerId, playerName });
+        sessionStorage.setItem('stayAwaySession', sessionData);
+        localStorage.setItem('stayAwaySession', sessionData);
       } else {
         showToast(res.message || 'Ошибка входа', 'error');
       }
@@ -238,6 +250,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     if (gameState && myPlayerId) {
       socket.emit(SOCKET_EVENTS.LEAVE_ROOM, { roomId: gameState.roomId, playerId: myPlayerId });
     }
+    sessionStorage.removeItem('stayAwaySession');
     localStorage.removeItem('stayAwaySession');
     set({
       gameState: null,
