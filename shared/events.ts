@@ -39,11 +39,13 @@ export const SOCKET_EVENTS = {
   ROOM_STATE_UPDATED: 'room:state_updated',
   ROOM_RECONNECT: 'room:reconnect',
   ROOM_TOGGLE_READY: 'room:toggle_ready',
+  PLAYER_AVATAR_UPDATE: 'player:avatar_update',
   'room:create': 'room:create',
   'room:join': 'room:join',
   'room:reconnect': 'room:reconnect',
   'room:state_updated': 'room:state_updated',
   'room:toggle_ready': 'room:toggle_ready',
+  'player:avatar_update': 'player:avatar_update',
   'chat:message': 'chat:message',
 } as const;
 

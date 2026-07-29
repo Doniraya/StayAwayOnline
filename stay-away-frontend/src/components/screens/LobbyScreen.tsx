@@ -1,12 +1,18 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Users, Play, X, LogOut, Plus, CheckCircle2, Clock } from 'lucide-react';
+import { Bot, Play, X, LogOut, Plus, CheckCircle2, Clock, Camera } from 'lucide-react';
 import { GITHUB_REPO_URL, GithubIcon } from '../Github';
 import { useGameStore } from '../../store/useGameStore';
 import InGameChat from '../game/InGameChat';
+import { AvatarCropperModal, DEFAULT_AVATAR } from '../game/AvatarCropperModal';
 
 export default function LobbyScreen() {
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
+
   const gameState = useGameStore((s) => s.gameState);
   const myPlayerId = useGameStore((s) => s.myPlayerId);
+  const avatarUrl = useGameStore((s) => s.avatarUrl);
+  const setAvatar = useGameStore((s) => s.setAvatar);
   const handleAddBot = useGameStore((s) => s.handleAddBot);
   const handleStartGame = useGameStore((s) => s.handleStartGame);
   const handleLeaveRoom = useGameStore((s) => s.handleLeaveRoom);
@@ -25,6 +31,8 @@ export default function LobbyScreen() {
   const neededPlayers = Math.max(0, 4 - players.length);
   const unreadyCount = players.filter((p) => !p.isHost && !p.isBot && (!p.isReady || !p.isOnline)).length;
   const canStart = players.length >= 4 && unreadyCount === 0;
+
+  const currentActiveAvatar = me?.avatarUrl || avatarUrl || DEFAULT_AVATAR;
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col p-4 md:p-8 relative">
@@ -49,19 +57,49 @@ export default function LobbyScreen() {
       </a>
 
       <div className="max-w-5xl mx-auto w-full flex-grow flex flex-col mt-12 md:mt-8">
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-wider mb-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">
             КОМНАТА <span className="text-red-500">{gameState.roomId}</span>
           </h1>
           <p className="text-slate-400 font-medium">
             Игроков: {players.length} из {MAX_PLAYERS}
           </p>
-          <button
-            onClick={() => navigator.clipboard.writeText(gameState.roomId)}
-            className="mt-3 text-xs md:text-sm bg-slate-800/80 hover:bg-slate-700 px-4 py-2 rounded-lg text-slate-300 transition-colors border border-slate-700"
-          >
-            📋 Скопировать Код Комнаты
-          </button>
+
+          {/* Панель персонального профиля с аватаром */}
+          <div className="mt-4 inline-flex items-center gap-3 bg-slate-900/90 border border-amber-900/40 px-4 py-2 rounded-2xl shadow-lg">
+            <div
+              className="relative group cursor-pointer"
+              onClick={() => setIsCropperOpen(true)}
+              title="Нажмите, чтобы настроить аватар"
+            >
+              <img
+                src={currentActiveAvatar}
+                alt="Ваш аватар"
+                className="w-12 h-12 rounded-full object-cover border-2 border-amber-500/80 shadow-[0_0_10px_rgba(245,158,11,0.2)] group-hover:opacity-80 transition"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition">
+                <Camera className="w-5 h-5 text-amber-400" />
+              </div>
+            </div>
+            <div className="text-left">
+              <div className="text-[11px] font-bold text-amber-500 uppercase tracking-wider">Ваш Аватар</div>
+              <button
+                onClick={() => setIsCropperOpen(true)}
+                className="text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1 transition"
+              >
+                <Camera className="w-3.5 h-3.5 text-amber-400" /> Изменить аватар
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3">
+            <button
+              onClick={() => navigator.clipboard.writeText(gameState.roomId)}
+              className="text-xs md:text-sm bg-slate-800/80 hover:bg-slate-700 px-4 py-2 rounded-lg text-slate-300 transition-colors border border-slate-700"
+            >
+              📋 Скопировать Код Комнаты
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-8 flex-grow">
@@ -85,16 +123,40 @@ export default function LobbyScreen() {
                     }`}
                   >
                     <div className="relative mb-3">
-                      <div className={`p-3 rounded-full ${p.isBot ? 'bg-emerald-500/20' : p.id === myPlayerId ? 'bg-red-500/20' : 'bg-blue-500/20'}`}>
-                        {p.isBot ? (
+                      {p.isBot ? (
+                        <div className="p-3 rounded-full bg-emerald-500/20">
                           <Bot className={`w-8 h-8 ${p.id === myPlayerId ? 'text-red-400' : 'text-emerald-400'}`} />
-                        ) : (
-                          <Users className={`w-8 h-8 ${p.id === myPlayerId ? 'text-red-400' : 'text-blue-400'}`} />
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div
+                          className={`relative rounded-full overflow-hidden border-2 ${
+                            p.id === myPlayerId ? 'border-amber-500 cursor-pointer group/avatar' : 'border-slate-700'
+                          }`}
+                          onClick={() => {
+                            if (p.id === myPlayerId) setIsCropperOpen(true);
+                          }}
+                          title={p.id === myPlayerId ? 'Нажмите для изменения аватара' : undefined}
+                        >
+                          <img
+                            src={p.avatarUrl || (p.id === myPlayerId ? avatarUrl : null) || DEFAULT_AVATAR}
+                            alt={p.name}
+                            className="w-12 h-12 rounded-full object-cover bg-slate-950"
+                          />
+                          {p.id === myPlayerId && (
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition">
+                              <Camera className="w-4 h-4 text-amber-400" />
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {/* Online Status Dot */}
                       {!p.isBot && (
-                        <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${p.isOnline ? 'bg-green-500' : 'bg-slate-500'}`} title={p.isOnline ? 'В сети' : 'Офлайн'}></div>
+                        <div
+                          className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${
+                            p.isOnline ? 'bg-green-500' : 'bg-slate-500'
+                          }`}
+                          title={p.isOnline ? 'В сети' : 'Офлайн'}
+                        />
                       )}
                     </div>
 
@@ -135,7 +197,9 @@ export default function LobbyScreen() {
                   </div>
                 ) : (
                   <button
-                    onClick={() => { if (isHost) handleAddBot(); }}
+                    onClick={() => {
+                      if (isHost) handleAddBot();
+                    }}
                     disabled={!isHost}
                     className={`h-full w-full flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed transition-all ${
                       isHost
@@ -146,7 +210,9 @@ export default function LobbyScreen() {
                     {isHost ? (
                       <>
                         <Plus className="w-8 h-8 mb-2 opacity-50 group-hover:opacity-100 transition-opacity" />
-                        <span className="text-sm font-semibold opacity-50 group-hover:opacity-100 transition-opacity">Добавить Бота</span>
+                        <span className="text-sm font-semibold opacity-50 group-hover:opacity-100 transition-opacity">
+                          Добавить Бота
+                        </span>
                       </>
                     ) : (
                       <span className="text-slate-700 text-sm font-medium">Ожидание...</span>
@@ -232,6 +298,13 @@ export default function LobbyScreen() {
           <InGameChat />
         </div>
       </div>
+
+      <AvatarCropperModal
+        isOpen={isCropperOpen}
+        onClose={() => setIsCropperOpen(false)}
+        onSaveAvatar={(dataUrl) => setAvatar(dataUrl)}
+        currentAvatarUrl={currentActiveAvatar}
+      />
     </div>
   );
 }

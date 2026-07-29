@@ -84,6 +84,7 @@ export type SocketResponse<T = unknown> =
 export interface Player {
   id: string;
   name: string;
+  avatarUrl?: string;
   isBot: boolean;
   isHost: boolean;
   hand: Card[];

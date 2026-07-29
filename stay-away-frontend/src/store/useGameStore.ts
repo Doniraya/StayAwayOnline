@@ -10,6 +10,7 @@ interface GameStoreState {
   myPlayerId: string | null;
   controlledPlayerId: string | null;
   playerName: string;
+  avatarUrl: string;
   roomCodeInput: string;
   selectedCardId: string | null;
   targetVictimId: string | null;
@@ -26,6 +27,7 @@ interface GameStoreState {
 
   // Сеттеры локального состояния
   setPlayerName: (name: string) => void;
+  setAvatar: (url: string) => void;
   setRoomCodeInput: (code: string) => void;
   setSelectedCardId: (id: string | null) => void;
   setTargetVictimId: (id: string | null) => void;
@@ -68,6 +70,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   myPlayerId: null,
   controlledPlayerId: null,
   playerName: '',
+  avatarUrl: (() => {
+    try {
+      return localStorage.getItem('stayAwayAvatar') || '';
+    } catch {
+      return '';
+    }
+  })(),
   roomCodeInput: '',
   selectedCardId: null,
   targetVictimId: null,
@@ -95,6 +104,21 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   setPlayerName: (name) => set({ playerName: name }),
+  setAvatar: (url) => {
+    set({ avatarUrl: url });
+    try {
+      localStorage.setItem('stayAwayAvatar', url);
+    } catch {}
+
+    const { gameState, myPlayerId } = get();
+    if (socket.connected && myPlayerId) {
+      socket.emit('player:avatar_update', {
+        roomId: gameState?.roomId,
+        playerId: myPlayerId,
+        avatarUrl: url,
+      });
+    }
+  },
   setRoomCodeInput: (code) => set({ roomCodeInput: code }),
   setSelectedCardId: (id) => set({ selectedCardId: id }),
   setTargetVictimId: (id) => set({ targetVictimId: id }),
@@ -194,11 +218,22 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }));
     };
 
+    const onAvatarUpdate = ({ playerId, avatarUrl }: { playerId: string; avatarUrl: string }) => {
+      set((state) => {
+        if (!state.gameState) return {};
+        const updatedPlayers = state.gameState.players.map((p) =>
+          p.id === playerId ? { ...p, avatarUrl } : p
+        );
+        return { gameState: { ...state.gameState, players: updatedPlayers } };
+      });
+    };
+
     socket.on(SOCKET_EVENTS.GAME_STATE_UPDATED, onGameStateUpdated);
     socket.on(SOCKET_EVENTS.GAME_ERROR, onGameError);
     socket.on(SOCKET_EVENTS.REVEAL_EVENT, onRevealEvent);
     socket.on(SOCKET_EVENTS.KICKED, onKicked);
     socket.on(SOCKET_EVENTS.CHAT_MESSAGE, onChatMessage);
+    socket.on('player:avatar_update', onAvatarUpdate);
 
     return () => {
       socket.off(SOCKET_EVENTS.GAME_STATE_UPDATED, onGameStateUpdated);
@@ -206,16 +241,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       socket.off(SOCKET_EVENTS.REVEAL_EVENT, onRevealEvent);
       socket.off(SOCKET_EVENTS.KICKED, onKicked);
       socket.off(SOCKET_EVENTS.CHAT_MESSAGE, onChatMessage);
+      socket.off('player:avatar_update', onAvatarUpdate);
     };
   },
 
   handleCreateRoom: () => {
-    const { playerName, showToast } = get();
+    const { playerName, avatarUrl, showToast } = get();
     if (!playerName.trim()) return showToast('Введите ваше имя!', 'error');
     if (!socket.connected) {
       socket.connect();
     }
-    socket.emit(SOCKET_EVENTS.CREATE_ROOM, { playerName }, (res: { success: boolean; roomId: string; playerId: string }) => {
+    socket.emit(SOCKET_EVENTS.CREATE_ROOM, { playerName, avatarUrl }, (res: { success: boolean; roomId: string; playerId: string }) => {
       if (res && res.success) {
         set({ myPlayerId: res.playerId, controlledPlayerId: res.playerId });
         const sessionData = JSON.stringify({ roomId: res.roomId, playerId: res.playerId, playerName });
@@ -228,12 +264,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   handleJoinRoom: () => {
-    const { playerName, roomCodeInput, showToast } = get();
+    const { playerName, avatarUrl, roomCodeInput, showToast } = get();
     if (!playerName.trim() || !roomCodeInput.trim()) return showToast('Заполните данные для входа!', 'error');
     if (!socket.connected) {
       socket.connect();
     }
-    socket.emit(SOCKET_EVENTS.JOIN_ROOM, { roomId: roomCodeInput.toUpperCase(), playerName }, (res: { success: boolean; playerId?: string; message?: string }) => {
+    socket.emit(SOCKET_EVENTS.JOIN_ROOM, { roomId: roomCodeInput.toUpperCase(), playerName, avatarUrl }, (res: { success: boolean; playerId?: string; message?: string }) => {
       if (res && res.success && res.playerId) {
         set({ myPlayerId: res.playerId, controlledPlayerId: res.playerId });
         const sessionData = JSON.stringify({ roomId: roomCodeInput.toUpperCase(), playerId: res.playerId, playerName });
