@@ -3,11 +3,12 @@ import { useGameStore } from './store/useGameStore';
 import { ActionBanner } from './components/ActionBanner';
 import { OvalTable } from './components/OvalTable';
 import { CardHand } from './components/CardHand';
+import { LobbyScreen } from './components/LobbyScreen';
 
 /**
  * Главная точка входа приложения AAA Game UI.
  * Объединяет шапку с логотипом Нечто и кодом комнаты, баннер BGA,
- * арену овального стола и интерактивную панель карт с атмосферой арктической станции.
+ * Лобби, арену овального стола и интерактивную панель карт.
  */
 export default function App() {
   const initSocketListeners = useGameStore((s) => s.initSocketListeners);
@@ -18,12 +19,14 @@ export default function App() {
     return cleanup;
   }, [initSocketListeners]);
 
+  const isInGame = gameState && gameState.phase !== 'LOBBY';
+
   return (
     <div className="relative min-h-screen w-full bg-slate-950 text-slate-100 flex flex-col justify-between overflow-hidden select-none font-sans bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black">
       {/* Атмосферный фон арктической станции */}
       <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:32px_32px]" />
 
-      {/* Верхняя шапка с логотипом Нечто, кодом комнаты и BGA баннером */}
+      {/* Верхняя шапка с логотипом Нечто и кодом комнаты */}
       <header className="relative z-10 p-3 sm:p-4 w-full flex flex-col items-center gap-2 border-b border-slate-800/40 bg-slate-950/60 backdrop-blur-md">
         <div className="w-full max-w-5xl flex items-center justify-between px-2">
           {/* Логотип Нечто */}
@@ -43,20 +46,21 @@ export default function App() {
           )}
         </div>
 
-        {/* Баннер инструкций BGA */}
-        <ActionBanner />
+        {/* Баннер инструкций BGA во время игры */}
+        {isInGame && <ActionBanner />}
       </header>
 
-      {/* Главная арена овального стола */}
-      <main className="relative z-10 flex-1 flex items-center justify-center w-full px-2 sm:px-4 py-2">
-        <OvalTable />
+      {/* Главный контент: Лобби или Игровой стол */}
+      <main className="relative z-10 flex-1 flex items-center justify-center w-full px-2 sm:px-4 py-4 overflow-y-auto">
+        {!isInGame ? <LobbyScreen /> : <OvalTable />}
       </main>
 
-      {/* Нижняя панель карт */}
-      <footer className="relative z-10 p-3 sm:p-4 w-full flex justify-center border-t border-slate-800/40 bg-slate-950/80 backdrop-blur-md">
-        <CardHand />
-      </footer>
+      {/* Нижняя панель карт (только во время игры) */}
+      {isInGame && (
+        <footer className="relative z-10 p-3 sm:p-4 w-full flex justify-center border-t border-slate-800/40 bg-slate-950/80 backdrop-blur-md">
+          <CardHand />
+        </footer>
+      )}
     </div>
   );
 }
-
