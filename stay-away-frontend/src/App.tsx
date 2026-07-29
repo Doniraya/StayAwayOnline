@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useGameStore } from './store/useGameStore';
-import UIPlayground from './components/UIPlayground';
+import PixiCanvasEngine from './components/PixiCanvasEngine';
 
 export default function App() {
   const initSocketListeners = useGameStore((s) => s.initSocketListeners);
@@ -10,5 +10,5 @@ export default function App() {
     return cleanup;
   }, [initSocketListeners]);
 
-  return <UIPlayground />;
+  return <PixiCanvasEngine />;
 }
