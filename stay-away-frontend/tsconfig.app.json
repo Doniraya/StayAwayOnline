@@ -7,6 +7,7 @@
     "types": ["vite/client"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
+    "ignoreDeprecations": "6.0",
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -16,11 +17,18 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Shared types alias */
+    "baseUrl": ".",
+    "paths": {
+      "@stay-away/shared": ["../shared/index"],
+      "@stay-away/shared/*": ["../shared/*"]
+    },
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src", "../shared"]
 }
