@@ -420,3 +420,204 @@ describe('GameEngine — перезапуск игры', () => {
     expect(result).toBe(false);
   });
 });
+
+describe('GameEngine — Story 2.2: Discrete FSM Turn Engine (Draw & Play/Discard Phases)', () => {
+  let engine: GameEngine;
+
+  beforeEach(() => {
+    engine = new GameEngine();
+  });
+
+  it('продвигает FSM по циклу DRAW -> PLAY_OR_DISCARD -> TRADE при сбросе карты', () => {
+    const { roomId } = setupGame(engine);
+    const room = getRoom(engine, roomId);
+    const currentPlayer = room.players[room.currentTurnIndex];
+
+    expect(room.phase).toBe('DRAW');
+
+    room.deck.push(mockCard('SUSPICION', 'top-stay-away'));
+
+    const drawRes = engine.drawCard(roomId, currentPlayer.id, currentPlayer.id);
+    expect(drawRes.success).toBe(true);
+    expect(room.phase).toBe('PLAY_OR_DISCARD');
+
+    const cardToDiscard = currentPlayer.hand.find(c => c.cardId !== 'THING' && c.cardId !== 'INFECTED')!;
+    const discardRes = engine.discardCard(roomId, currentPlayer.id, currentPlayer.id, cardToDiscard.id);
+    expect(discardRes.success).toBe(true);
+
+    expect(room.phase).toBe('TRADE');
+    expect(room.pendingTrade).toBeDefined();
+    expect(room.pendingTrade?.fromPlayerId).toBe(currentPlayer.id);
+  });
+
+  it('запрещает активному игроку выполнять сброс в фазе DRAW без предварительного добора', () => {
+    const { roomId } = setupGame(engine);
+    const room = getRoom(engine, roomId);
+    const currentPlayer = room.players[room.currentTurnIndex];
+
+    expect(room.phase).toBe('DRAW');
+    const cardToDiscard = currentPlayer.hand[0];
+
+    const discardRes = engine.discardCard(roomId, currentPlayer.id, currentPlayer.id, cardToDiscard.id);
+    expect(discardRes.success).toBe(false);
+    expect(discardRes.error).toBeDefined();
+  });
+
+  it('запрещает активному игроку повторный добор карт в фазе PLAY_OR_DISCARD', () => {
+    const { roomId } = setupGame(engine);
+    const room = getRoom(engine, roomId);
+    const currentPlayer = room.players[room.currentTurnIndex];
+
+    room.deck.push(mockCard('SUSPICION', 'top-stay-away'));
+    engine.drawCard(roomId, currentPlayer.id, currentPlayer.id);
+    expect(room.phase).toBe('PLAY_OR_DISCARD');
+
+    const secondDrawRes = engine.drawCard(roomId, currentPlayer.id, currentPlayer.id);
+    expect(secondDrawRes.success).toBe(false);
+    expect(secondDrawRes.error).toContain('Не фаза добора карт');
+  });
+
+  it('неактивный игрок не может разыгрывать или сбрасывать карты в чужой ход', () => {
+    const { roomId } = setupGame(engine);
+    const room = getRoom(engine, roomId);
+    const currentPlayer = room.players[room.currentTurnIndex];
+    const otherPlayer = room.players.find(p => p.id !== currentPlayer.id)!;
+
+    room.deck.push(mockCard('SUSPICION', 'top-stay-away'));
+    engine.drawCard(roomId, currentPlayer.id, currentPlayer.id);
+    expect(room.phase).toBe('PLAY_OR_DISCARD');
+
+    const otherCard = otherPlayer.hand[0];
+    const playRes = engine.playCard(roomId, otherPlayer.id, otherPlayer.id, otherCard.id);
+    expect(playRes.success).toBe(false);
+  });
+});
+
+describe('GameEngine — Story 2.3: Mandatory Blind Card Trade Phase', () => {
+  let engine: GameEngine;
+
+  beforeEach(() => {
+    engine = new GameEngine();
+  });
+
+  it('выполняет слепой обмен между активным игроком и соседом и передаёт ход', () => {
+    const { roomId } = setupGame(engine);
+    const room = getRoom(engine, roomId);
+    const playerA = room.players[room.currentTurnIndex];
+    const nextIdx = (room.currentTurnIndex + room.direction + room.players.length) % room.players.length;
+    const playerB = room.players[nextIdx];
+
+    room.deck.push(mockCard('SUSPICION', 'top-card'));
+    engine.drawCard(roomId, playerA.id, playerA.id);
+    const cardToDiscard = playerA.hand.find(c => c.cardId !== 'THING' && c.cardId !== 'INFECTED')!;
+    engine.discardCard(roomId, playerA.id, playerA.id, cardToDiscard.id);
+
+    expect(room.phase).toBe('TRADE');
+    expect(room.pendingTrade?.fromPlayerId).toBe(playerA.id);
+    expect(room.pendingTrade?.toPlayerId).toBe(playerB.id);
+
+    const cardOffered = playerA.hand.find(c => c.cardId !== 'THING' && c.cardId !== 'INFECTED')!;
+    const offerRes = engine.offerTrade(roomId, playerA.id, playerA.id, cardOffered.id);
+    expect(offerRes.success).toBe(true);
+    expect(room.phase).toBe('TRADE_ACCEPT');
+
+    const cardReturned = playerB.hand.find(c => c.cardId !== 'THING' && c.cardId !== 'INFECTED')!;
+    const acceptRes = engine.acceptTrade(roomId, playerB.id, playerB.id, cardReturned.id);
+    expect(acceptRes.success).toBe(true);
+
+    expect(playerA.hand.some(c => c.id === cardReturned.id)).toBe(true);
+    expect(playerB.hand.some(c => c.id === cardOffered.id)).toBe(true);
+
+    expect(playerA.hand).toHaveLength(4);
+    expect(playerB.hand).toHaveLength(4);
+    expect(room.phase).toBe('DRAW');
+    expect(room.currentTurnIndex).toBe(nextIdx);
+  });
+
+  it('запрещает человеку передавать карту "Заражение!"', () => {
+    const { roomId } = setupGame(engine);
+    const room = getRoom(engine, roomId);
+    const playerA = room.players[room.currentTurnIndex];
+
+    playerA.role = 'HUMAN';
+    const infCard = mockCard('INFECTED', 'inf-human-test');
+    playerA.hand.push(infCard);
+
+    room.phase = 'TRADE';
+    room.pendingTrade = { fromPlayerId: playerA.id, toPlayerId: room.players[1].id };
+
+    const offerRes = engine.offerTrade(roomId, playerA.id, playerA.id, 'inf-human-test');
+    expect(offerRes.success).toBe(false);
+    expect(offerRes.error).toContain('Человек не может передавать карту "Заражение!"');
+  });
+
+  it('запрещает отдавать карту "Нечто"', () => {
+    const { roomId } = setupGame(engine);
+    const room = getRoom(engine, roomId);
+    const thingPlayer = room.players.find(p => p.role === 'THING')!;
+    room.currentTurnIndex = room.players.indexOf(thingPlayer);
+
+    const thingCard = thingPlayer.hand.find(c => c.cardId === 'THING')!;
+
+    room.phase = 'TRADE';
+    const nextIdx = (room.currentTurnIndex + 1) % room.players.length;
+    room.pendingTrade = { fromPlayerId: thingPlayer.id, toPlayerId: room.players[nextIdx].id };
+
+    const offerRes = engine.offerTrade(roomId, thingPlayer.id, thingPlayer.id, thingCard.id);
+    expect(offerRes.success).toBe(false);
+    expect(offerRes.error).toContain('Нечто не может отдавать свою карту!');
+  });
+
+  it('заражает человека при получении карты "Заражение!" от Нечто', () => {
+    const { roomId } = setupGame(engine);
+    const room = getRoom(engine, roomId);
+
+    const thingPlayer = room.players.find(p => p.role === 'THING')!;
+    const humanPlayer = room.players.find(p => p.role === 'HUMAN')!;
+
+    const infCard = mockCard('INFECTED', 'inf-thing-to-human');
+    thingPlayer.hand.push(infCard);
+
+    room.phase = 'TRADE_ACCEPT';
+    room.pendingTrade = {
+      fromPlayerId: thingPlayer.id,
+      toPlayerId: humanPlayer.id,
+      offeredCard: infCard
+    };
+
+    const returnCard = humanPlayer.hand.find(c => c.cardId !== 'THING' && c.cardId !== 'INFECTED')!;
+    const acceptRes = engine.acceptTrade(roomId, humanPlayer.id, humanPlayer.id, returnCard.id);
+
+    expect(acceptRes.success).toBe(true);
+    expect(humanPlayer.role).toBe('INFECTED');
+  });
+});
+
+describe('GameEngine — Story 4.1: Instant Panic Cards Engine & Replacement Draw', () => {
+  let engine: GameEngine;
+
+  beforeEach(() => {
+    engine = new GameEngine();
+  });
+
+  it('автоматически сбрасывает вытянутую карту Паники и производит добор заменяющей карты STAY_AWAY', () => {
+    const { roomId } = setupGame(engine);
+    const room = getRoom(engine, roomId);
+    const currentPlayer = room.players[room.currentTurnIndex];
+
+    const panicCard = mockCard('PANIC_THREE_FOUR', 'panic-1');
+    panicCard.type = 'PANIC';
+    const replacementCard = mockCard('SUSPICION', 'replacement-stay-away');
+
+    room.deck.push(replacementCard);
+    room.deck.push(panicCard);
+
+    const drawRes = engine.drawCard(roomId, currentPlayer.id, currentPlayer.id);
+    expect(drawRes.success).toBe(true);
+    expect(room.phase).toBe('PLAY_OR_DISCARD');
+    expect(currentPlayer.hand.some(c => c.id === 'replacement-stay-away')).toBe(true);
+    expect(room.discardPile.some(c => c.id === 'panic-1')).toBe(true);
+  });
+});
+
+

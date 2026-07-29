@@ -374,7 +374,8 @@ export class GameEngine {
         return { success: true, revealData };
       }
 
-      this.prepareTradePhase(room);
+      this.drawReplacementCard(room, currentPlayer);
+      room.phase = 'PLAY_OR_DISCARD';
       return { success: true, revealData };
     }
 
@@ -431,9 +432,24 @@ export class GameEngine {
     return { success: true, revealData: result.revealData };
   }
 
+  private enforceInfectedLimit(room: GameState, player: Player) {
+    const infectedOnHand = player.hand.filter(c => c.cardId === 'INFECTED').length;
+    if (infectedOnHand > 3) {
+      room.log.push(`⚠️ ${player.name} превысил лимит карт "Заражение!" (${infectedOnHand}/3). Лишняя карта автоматически сброшена.`);
+      const excessIdx = player.hand.findIndex(c => c.cardId === 'INFECTED');
+      if (excessIdx !== -1) {
+        const [excess] = player.hand.splice(excessIdx, 1);
+        room.discardPile.push(excess);
+      }
+    }
+  }
+
   private drawReplacementCard(room: GameState, player: Player) {
-    while (true) {
+    let attempts = 0;
+    const maxAttempts = (room.deck.length + room.discardPile.length) * 2 + 1;
+    while (attempts++ < maxAttempts) {
       if (room.deck.length === 0) {
+        if (room.discardPile.length === 0) break;
         room.deck = [...room.discardPile];
         secureShuffleInPlace(room.deck);
         room.discardPile = [];
@@ -448,6 +464,7 @@ export class GameEngine {
         room.log.push(`🚨 ПАНИКА! ${player.name} вытащил карту Паники при замене, она уходит в сброс лицевой стороной вниз.`);
       } else if (drawnCard.type === 'STAY_AWAY') {
         player.hand.push(drawnCard);
+        this.enforceInfectedLimit(room, player);
         room.log.push(`🛡️ ${player.name} взял карту на замену.`);
         break;
       }
@@ -675,7 +692,7 @@ export class GameEngine {
   // 12. Сброс карты
   public discardCard(roomId: string, requesterId: string, targetPlayerId: string, cardId: string): { success: boolean; error?: string } {
     const room = this.roomManager.getRoom(roomId);
-    if (!room || (room.phase !== 'PLAY_OR_DISCARD' && room.phase !== 'DRAW')) return { success: false, error: 'Нельзя сбросить карту' };
+    if (!room || room.phase !== 'PLAY_OR_DISCARD') return { success: false, error: 'Нельзя сбросить карту сейчас. Сначала возьмите карту из колоды!' };
     if (!this.canControlPlayer(room, requesterId, targetPlayerId)) return { success: false, error: 'Нет прав доступа' };
 
     this.touchRoom(room);
