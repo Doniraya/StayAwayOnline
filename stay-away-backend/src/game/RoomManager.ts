@@ -9,7 +9,7 @@ export class RoomManager {
     return this.rooms.get(roomId);
   }
 
-  public createRoom(hostName: string): { roomId: string; hostId: string } {
+  public createRoom(hostName: string, avatarUrl?: string): { roomId: string; hostId: string } {
     let roomId = '';
     let attempts = 0;
     const maxAttempts = 100;
@@ -28,6 +28,7 @@ export class RoomManager {
     const hostPlayer: Player = {
       id: hostId,
       name: hostName,
+      avatarUrl,
       isBot: false,
       isHost: true,
       hand: [],

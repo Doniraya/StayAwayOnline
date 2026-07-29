@@ -52,8 +52,17 @@ export class GameEngine {
     return this.roomManager.setBotDelay(roomId, requesterId, delayMs);
   }
 
-  public createRoom(hostName: string): { roomId: string; hostId: string } {
-    return this.roomManager.createRoom(hostName);
+  public createRoom(hostName: string, avatarUrl?: string): { roomId: string; hostId: string } {
+    return this.roomManager.createRoom(hostName, avatarUrl);
+  }
+
+  public updatePlayerAvatar(roomId: string, playerId: string, avatarUrl: string): boolean {
+    const room = this.roomManager.getRoom(roomId);
+    if (!room) return false;
+    const player = room.players.find((p) => p.id === playerId);
+    if (!player) return false;
+    player.avatarUrl = avatarUrl;
+    return true;
   }
 
   public canControlPlayer(room: GameState, requesterId: string, targetPlayerId: string): boolean {
@@ -166,7 +175,7 @@ export class GameEngine {
   }
 
   // 2. Вход в комнату
-  public joinRoom(roomId: string, playerName: string): Player | null {
+  public joinRoom(roomId: string, playerName: string, avatarUrl?: string): Player | null {
     const room = this.roomManager.getRoom(roomId);
     if (!room || room.phase !== 'LOBBY' || room.players.length >= 12) return null;
 
@@ -175,6 +184,7 @@ export class GameEngine {
     const newPlayer: Player = {
       id: uuidv4(),
       name: playerName,
+      avatarUrl,
       isBot: false,
       isHost: false,
       hand: [],

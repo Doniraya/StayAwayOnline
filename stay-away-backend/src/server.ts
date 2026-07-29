@@ -40,9 +40,9 @@ function broadcastGameState(roomId: string) {
 
 io.on('connection', (socket) => {
   const handleCreateRoomAction = (payload: any, callback: Function) => {
-    const { playerName } = payload || {};
+    const { playerName, avatarUrl } = payload || {};
     const safeName = (playerName || '').toString().slice(0, 30).trim() || 'Игрок';
-    const { roomId, hostId } = gameEngine.createRoom(safeName);
+    const { roomId, hostId } = gameEngine.createRoom(safeName, avatarUrl);
     socket.join(roomId);
     socket.join(hostId);
     socketMap.set(socket.id, { roomId, playerId: hostId });
@@ -53,10 +53,10 @@ io.on('connection', (socket) => {
   };
 
   const handleJoinRoomAction = (payload: any, callback: Function) => {
-    const { roomId, playerName } = payload || {};
+    const { roomId, playerName, avatarUrl } = payload || {};
     const safeName = (playerName || '').toString().slice(0, 30).trim() || 'Игрок';
     const cleanRoomId = (roomId || '').toString().replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase();
-    const player = gameEngine.joinRoom(cleanRoomId, safeName);
+    const player = gameEngine.joinRoom(cleanRoomId, safeName, avatarUrl);
     if (!player) {
       if (typeof callback === 'function') {
         callback({ success: false, message: 'Не удалось войти' });
@@ -76,6 +76,13 @@ io.on('connection', (socket) => {
   socket.on(SOCKET_EVENTS.ROOM_CREATE, handleCreateRoomAction);
   socket.on(SOCKET_EVENTS.JOIN_ROOM, handleJoinRoomAction);
   socket.on(SOCKET_EVENTS.ROOM_JOIN, handleJoinRoomAction);
+  socket.on('player:avatar_update', (payload: any) => {
+    const { roomId, playerId, avatarUrl } = payload || {};
+    if (roomId && playerId && avatarUrl) {
+      gameEngine.updatePlayerAvatar(roomId, playerId, avatarUrl);
+      broadcastGameState(roomId);
+    }
+  });
 
   const handleToggleReadyAction = () => {
     const info = socketMap.get(socket.id);
