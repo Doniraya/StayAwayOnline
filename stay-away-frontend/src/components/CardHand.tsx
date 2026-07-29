@@ -26,7 +26,7 @@ export const CardHand: React.FC = () => {
   const isMyTurn = activePlayer?.id === myId;
   const isPlayPhase = gameState.phase === 'PLAY_OR_DISCARD' && isMyTurn;
   const isOfferTradePhase = gameState.phase === 'TRADE' && isMyTurn;
-  const isAcceptTradePhase = gameState.phase === 'TRADE_ACCEPT' && gameState.pendingTrade?.targetPlayerId === myId;
+  const isAcceptTradePhase = gameState.phase === 'TRADE_ACCEPT' && gameState.pendingTrade?.toPlayerId === myId;
 
   return (
     <div className="w-full flex flex-col items-center gap-3">

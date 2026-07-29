@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* Стерильный CSS Reset */
 html, body, #root {
   margin: 0;

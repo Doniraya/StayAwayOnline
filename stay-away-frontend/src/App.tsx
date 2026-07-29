@@ -1,10 +1,13 @@
 import { useEffect } from 'react';
 import { useGameStore } from './store/useGameStore';
+import { ActionBanner } from './components/ActionBanner';
+import { OvalTable } from './components/OvalTable';
+import { CardHand } from './components/CardHand';
 
 /**
- * Стерильная точка входа App.tsx
- * Подключена 100% логика и связь с бэкендом по Socket.io.
- * Вся UI-верстка удалена — идеальный чистый холст для вашего нового UI/UX!
+ * Главная точка входа приложения AAA Game UI.
+ * Объединяет шапку с логотипом Нечто и кодом комнаты, баннер BGA,
+ * арену овального стола и интерактивную панель карт с атмосферой арктической станции.
  */
 export default function App() {
   const initSocketListeners = useGameStore((s) => s.initSocketListeners);
@@ -16,13 +19,44 @@ export default function App() {
   }, [initSocketListeners]);
 
   return (
-    <div style={{ padding: 20 }}>
-      {/* Чистый холст — здесь будет ваш новый UI */}
-      <h1>StayAwayOnline — Sterile Canvas</h1>
-      <p style={{ opacity: 0.7 }}>
-        Связь с бэкендом активна. Состояние игры:{' '}
-        <strong>{gameState ? gameState.phase : 'Не в комнате'}</strong>
-      </p>
+    <div className="relative min-h-screen w-full bg-slate-950 text-slate-100 flex flex-col justify-between overflow-hidden select-none font-sans bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black">
+      {/* Атмосферный фон арктической станции */}
+      <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:32px_32px]" />
+
+      {/* Верхняя шапка с логотипом Нечто, кодом комнаты и BGA баннером */}
+      <header className="relative z-10 p-3 sm:p-4 w-full flex flex-col items-center gap-2 border-b border-slate-800/40 bg-slate-950/60 backdrop-blur-md">
+        <div className="w-full max-w-5xl flex items-center justify-between px-2">
+          {/* Логотип Нечто */}
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">☣️</span>
+            <h1 className="text-lg sm:text-2xl font-black tracking-wider text-amber-500 uppercase drop-shadow-[0_0_10px_rgba(245,158,11,0.4)]">
+              НЕЧТО <span className="text-slate-500 text-xs font-normal tracking-normal lowercase border border-slate-700/60 px-1.5 py-0.5 rounded bg-slate-900/80">stay away! online</span>
+            </h1>
+          </div>
+
+          {/* Код комнаты */}
+          {gameState?.roomId && (
+            <div className="flex items-center gap-2 bg-slate-900/90 border border-amber-500/30 px-3 py-1 rounded-xl text-xs sm:text-sm font-mono shadow-inner">
+              <span className="text-slate-400 font-sans">Комната:</span>
+              <span className="text-amber-400 font-bold tracking-widest">{gameState.roomId}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Баннер инструкций BGA */}
+        <ActionBanner />
+      </header>
+
+      {/* Главная арена овального стола */}
+      <main className="relative z-10 flex-1 flex items-center justify-center w-full px-2 sm:px-4 py-2">
+        <OvalTable />
+      </main>
+
+      {/* Нижняя панель карт */}
+      <footer className="relative z-10 p-3 sm:p-4 w-full flex justify-center border-t border-slate-800/40 bg-slate-950/80 backdrop-blur-md">
+        <CardHand />
+      </footer>
     </div>
   );
 }
+
