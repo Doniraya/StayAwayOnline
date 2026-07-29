@@ -8,6 +8,21 @@ import { useGameStore } from '../../store/useGameStore';
  * с текстурой состаренной бумаги (.bg-parchment), заголовком "ЖУРНАЛ РАДИОСВЯЗИ" (font-special-elite)
  * и записями в стиле печатной машинки.
  */
+const renderFormattedText = (text: string) => {
+  const parts = text.split(/(«[^»]+»|"[^"]+")/g);
+  return parts.map((part, i) => {
+    if (!part) return null;
+    if ((part.startsWith('«') && part.endsWith('»')) || (part.startsWith('"') && part.endsWith('"'))) {
+      return (
+        <span key={i} className="text-amber-800 font-extrabold bg-amber-900/20 px-1 rounded inline">
+          {part}
+        </span>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+};
+
 export default function RadioJournal() {
   const gameState = useGameStore((s) => s.gameState);
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -84,7 +99,7 @@ export default function RadioJournal() {
                   )}
                 </div>
                 <div className="text-amber-950 font-special-elite whitespace-pre-wrap break-words tracking-tight">
-                  {entry}
+                  {renderFormattedText(entry)}
                 </div>
               </div>
             );

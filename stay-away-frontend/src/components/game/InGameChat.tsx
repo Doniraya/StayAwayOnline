@@ -15,10 +15,26 @@ export default function InGameChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activePlayerId = controlledPlayerId || myPlayerId;
 
-  // Автоскролл к последнему сообщению
+  const [unreadCount, setUnreadCount] = useState(0);
+  const prevChatCountRef = useRef(chatMessages.length);
+
+  // Автоскролл и подсчет непрочитанных сообщений
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, gameState?.log]);
+    if (chatMessages.length < prevChatCountRef.current) {
+      setUnreadCount(0);
+    } else if ((activeTab === 'log' || isCollapsed) && chatMessages.length > prevChatCountRef.current) {
+      setUnreadCount((prev) => prev + (chatMessages.length - prevChatCountRef.current));
+    }
+    prevChatCountRef.current = chatMessages.length;
+  }, [chatMessages, activeTab, isCollapsed]);
+
+  const handleTabChange = (tab: 'chat' | 'log') => {
+    setActiveTab(tab);
+    if (tab === 'chat') {
+      setUnreadCount(0);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,18 +83,24 @@ export default function InGameChat() {
             <div className="flex bg-slate-950/80 rounded p-0.5 border border-slate-800 mr-1">
               <button
                 type="button"
-                onClick={() => setActiveTab('chat')}
-                className={`px-2 py-0.5 text-[10px] font-semibold rounded transition flex items-center gap-1 ${
+                onClick={() => handleTabChange('chat')}
+                className={`px-2 py-0.5 text-[10px] font-semibold rounded transition flex items-center gap-1 relative ${
                   activeTab === 'chat'
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <MessageSquare className="w-3 h-3" /> Чат
+                <MessageSquare className="w-3 h-3" />
+                <span>Чат</span>
+                {unreadCount > 0 && (
+                  <span className="ml-0.5 bg-amber-500 text-slate-950 font-black text-[9px] px-1 rounded-full animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('log')}
+                onClick={() => handleTabChange('log')}
                 className={`px-2 py-0.5 text-[10px] font-semibold rounded transition flex items-center gap-1 ${
                   activeTab === 'log'
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
