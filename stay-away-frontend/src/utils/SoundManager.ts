@@ -101,14 +101,14 @@ class SoundManager {
           const osc2 = ctx.createOscillator();
           const gain = ctx.createGain();
 
-          osc1.type = 'sawtooth';
-          osc2.type = 'square';
+          osc1.type = 'triangle';
+          osc2.type = 'sine';
 
-          osc1.frequency.setValueAtTime(120, now);
-          osc2.frequency.setValueAtTime(125, now);
+          osc1.frequency.setValueAtTime(180, now);
+          osc2.frequency.setValueAtTime(130, now);
 
-          gain.gain.setValueAtTime(0.4, now);
-          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.005, now + 0.35);
 
           osc1.connect(gain);
           osc2.connect(gain);
@@ -116,8 +116,8 @@ class SoundManager {
 
           osc1.start(now);
           osc2.start(now);
-          osc1.stop(now + 0.5);
-          osc2.stop(now + 0.5);
+          osc1.stop(now + 0.35);
+          osc2.stop(now + 0.35);
           break;
         }
 
